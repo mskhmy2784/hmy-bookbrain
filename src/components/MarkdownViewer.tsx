@@ -2,6 +2,7 @@
 
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 
 interface MarkdownViewerProps {
   content: string;
@@ -12,7 +13,7 @@ export function MarkdownViewer({ content, className = '' }: MarkdownViewerProps)
   return (
     <div className={`max-w-none ${className}`}>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkBreaks]}
         components={{
           // カスタムスタイリング
           h1: ({ children }) => (
