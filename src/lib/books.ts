@@ -14,14 +14,25 @@ import {
 import { db } from './firebase';
 import { Book } from '@/types/book';
 
+// undefined 値を除去するヘルパー関数
+const removeUndefined = (obj: Record<string, any>): Record<string, any> => {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([_, value]) => value !== undefined)
+  );
+};
+
 // 書籍を追加
 export async function addBook(userId: string, book: Omit<Book, 'id' | 'createdAt' | 'updatedAt'>): Promise<Book> {
   const booksRef = collection(db, 'users', userId, 'books');
-  const docRef = await addDoc(booksRef, {
+  
+  // undefined を除去してからFirestoreに保存
+  const cleanedBook = removeUndefined({
     ...book,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+  
+  const docRef = await addDoc(booksRef, cleanedBook);
 
   return {
     id: docRef.id,
@@ -69,10 +80,14 @@ export async function getBooks(userId: string): Promise<Book[]> {
 // 書籍を更新
 export async function updateBook(userId: string, bookId: string, updates: Partial<Book>): Promise<void> {
   const bookRef = doc(db, 'users', userId, 'books', bookId);
-  await updateDoc(bookRef, {
+  
+  // undefined を除去してから更新
+  const cleanedUpdates = removeUndefined({
     ...updates,
     updatedAt: serverTimestamp(),
   });
+  
+  await updateDoc(bookRef, cleanedUpdates);
 }
 
 // 書籍を削除
@@ -86,11 +101,14 @@ export async function addBooks(userId: string, books: Omit<Book, 'id' | 'created
   const booksRef = collection(db, 'users', userId, 'books');
 
   for (const book of books) {
-    await addDoc(booksRef, {
+    // undefined を除去してから保存
+    const cleanedBook = removeUndefined({
       ...book,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
+    
+    await addDoc(booksRef, cleanedBook);
   }
 
   return books.length;
