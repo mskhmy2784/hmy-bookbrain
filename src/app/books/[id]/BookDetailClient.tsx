@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getBook, updateBook, deleteBook } from '@/lib/books';
-import { getNotes, deleteNote } from '@/lib/notes';
+import { getNotes, deleteNote, updateNote, updateNotesOrder } from '@/lib/notes';
 import { searchBookByISBN, getCoverImageUrl } from '@/lib/googleBooks';
 import { Book, Note } from '@/types/book';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,8 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 
 const statusOptions = [
@@ -198,6 +200,51 @@ export default function BookDetailClient() {
 
   const collapseAllNotes = () => {
     setExpandedNotes(new Set());
+  };
+
+  // メモのチェックボックス状態を更新
+  const handleNoteContentChange = async (noteId: string, newContent: string) => {
+    if (!user || !bookId) return;
+    
+    try {
+      await updateNote(user.uid, bookId, noteId, { content: newContent });
+      setNotes((prev) =>
+        prev.map((n) => (n.id === noteId ? { ...n, content: newContent } : n))
+      );
+    } catch (error) {
+      console.error('Error updating note:', error);
+    }
+  };
+
+  // メモの順序を変更
+  const handleMoveNote = async (noteId: string, direction: 'up' | 'down') => {
+    if (!user || !bookId) return;
+
+    const currentIndex = notes.findIndex((n) => n.id === noteId);
+    if (currentIndex === -1) return;
+
+    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (newIndex < 0 || newIndex >= notes.length) return;
+
+    // ローカルで順序を入れ替え
+    const newNotes = [...notes];
+    [newNotes[currentIndex], newNotes[newIndex]] = [newNotes[newIndex], newNotes[currentIndex]];
+    
+    // displayOrderを更新
+    const noteOrders = newNotes.map((note, index) => ({
+      noteId: note.id!,
+      displayOrder: index,
+    }));
+
+    setNotes(newNotes);
+
+    try {
+      await updateNotesOrder(user.uid, bookId, noteOrders);
+    } catch (error) {
+      console.error('Error updating note order:', error);
+      // エラー時は元に戻す
+      setNotes(notes);
+    }
   };
 
   if (loading) {
@@ -578,7 +625,7 @@ export default function BookDetailClient() {
                 </p>
               ) : (
                 <div className="space-y-3">
-                  {notes.map((note) => {
+                  {notes.map((note, noteIndex) => {
                     const isExpanded = expandedNotes.has(note.id!);
                     return (
                       <div
@@ -615,6 +662,26 @@ export default function BookDetailClient() {
                             </div>
                           </div>
                           <div className="flex gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                            {/* 順序変更ボタン */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleMoveNote(note.id!, 'up')}
+                              disabled={noteIndex === 0}
+                              title="上に移動"
+                            >
+                              <ArrowUp className={`h-4 w-4 ${noteIndex === 0 ? 'text-gray-300' : 'text-gray-500'}`} />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleMoveNote(note.id!, 'down')}
+                              disabled={noteIndex === notes.length - 1}
+                              title="下に移動"
+                            >
+                              <ArrowDown className={`h-4 w-4 ${noteIndex === notes.length - 1 ? 'text-gray-300' : 'text-gray-500'}`} />
+                            </Button>
+                            <div className="w-px h-6 bg-gray-200 mx-1" />
                             <Button
                               variant="ghost"
                               size="sm"
@@ -635,7 +702,10 @@ export default function BookDetailClient() {
                         {/* アコーディオンコンテンツ */}
                         {isExpanded && (
                           <div className="p-4 border-t bg-white">
-                            <MarkdownViewer content={note.content} />
+                            <MarkdownViewer
+                              content={note.content}
+                              onContentChange={(newContent) => handleNoteContentChange(note.id!, newContent)}
+                            />
                           </div>
                         )}
                       </div>

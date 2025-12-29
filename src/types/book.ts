@@ -27,6 +27,7 @@ export interface Note {
   content: string;
   pageReference?: string;
   summary?: string;
+  displayOrder?: number;
   createdAt: Date;
   updatedAt: Date;
 }

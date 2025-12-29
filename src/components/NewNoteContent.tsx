@@ -8,7 +8,7 @@ import { getBook } from '@/lib/books';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { MarkdownEditor } from '@/components/MarkdownEditor';
 import { MarkdownViewer } from '@/components/MarkdownViewer';
 import { ArrowLeft, Save, Eye, Edit, BookOpen } from 'lucide-react';
 import { Book } from '@/types/book';
@@ -141,29 +141,22 @@ export default function NewNoteContent() {
               <div className="p-4">
                 <Label className="mb-2 block">
                   内容（マークダウン形式で入力できます）
+                  <span className="text-gray-400 font-normal ml-2">
+                    / でコマンドメニューを表示
+                  </span>
                 </Label>
-                <Textarea
+                <MarkdownEditor
                   value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder={`マークダウン形式でメモを入力...
+                  onChange={setContent}
+                  placeholder="マークダウン形式でメモを入力...
+
+「/」を入力するとコマンドメニューが表示されます。
 
 例:
-## 重要なポイント
-- ポイント1
-- ポイント2
-
-### 引用
-> 本文からの引用
-
-### コード
-\`\`\`python
-print('Hello')
-\`\`\`
-
-### TODO
-- [x] 完了したタスク
-- [ ] 未完了のタスク`}
-                  className="min-h-[calc(100vh-320px)] font-mono text-sm resize-none"
+/h2 → ## 見出し
+/bullet → - 箇条書き
+/code → コードブロック"
+                  className="min-h-[calc(100vh-320px)]"
                 />
               </div>
             ) : (
@@ -182,16 +175,16 @@ print('Hello')
           {/* マークダウンヘルプ（入力モード時のみ） */}
           {mode === 'edit' && (
             <div className="mt-4 p-4 bg-gray-100 rounded-lg text-sm text-gray-600">
-              <p className="font-medium mb-2">📝 マークダウン記法</p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                <span><code>## 見出し</code></span>
-                <span><code>**太字**</code></span>
-                <span><code>*斜体*</code></span>
-                <span><code>- リスト</code></span>
-                <span><code>1. 番号リスト</code></span>
-                <span><code>&gt; 引用</code></span>
-                <span><code>`コード`</code></span>
-                <span><code>[リンク](URL)</code></span>
+              <p className="font-medium mb-2">💡 ヒント: 「/」を入力するとコマンドメニューが表示されます</p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                <span><code>/h1</code> 見出し1</span>
+                <span><code>/h2</code> 見出し2</span>
+                <span><code>/bullet</code> 箇条書き</span>
+                <span><code>/number</code> 番号リスト</span>
+                <span><code>/todo</code> TODOリスト</span>
+                <span><code>/quote</code> 引用</span>
+                <span><code>/code</code> コードブロック</span>
+                <span><code>/table</code> テーブル</span>
               </div>
             </div>
           )}

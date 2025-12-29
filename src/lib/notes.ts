@@ -29,7 +29,7 @@ export async function getNotes(userId: string, bookId: string): Promise<Note[]> 
   const q = query(notesRef, orderBy('createdAt', 'desc'));
   const snapshot = await getDocs(q);
 
-  return snapshot.docs.map((doc) => {
+  const notes = snapshot.docs.map((doc) => {
     const data = doc.data();
     return {
       id: doc.id,
@@ -38,6 +38,16 @@ export async function getNotes(userId: string, bookId: string): Promise<Note[]> 
       createdAt: data.createdAt?.toDate() || new Date(),
       updatedAt: data.updatedAt?.toDate() || new Date(),
     } as Note;
+  });
+
+  // displayOrderがあればそれでソート、なければcreatedAtの逆順を維持
+  return notes.sort((a, b) => {
+    if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
+      return a.displayOrder - b.displayOrder;
+    }
+    if (a.displayOrder !== undefined) return -1;
+    if (b.displayOrder !== undefined) return 1;
+    return 0; // 既にcreatedAtでソート済み
   });
 }
 
@@ -79,4 +89,17 @@ export async function updateNote(
 export async function deleteNote(userId: string, bookId: string, noteId: string): Promise<void> {
   const noteRef = doc(db, 'users', userId, 'books', bookId, 'notes', noteId);
   await deleteDoc(noteRef);
+}
+
+// 複数メモの順序を更新
+export async function updateNotesOrder(
+  userId: string,
+  bookId: string,
+  noteOrders: { noteId: string; displayOrder: number }[]
+): Promise<void> {
+  const updatePromises = noteOrders.map(({ noteId, displayOrder }) => {
+    const noteRef = doc(db, 'users', userId, 'books', bookId, 'notes', noteId);
+    return updateDoc(noteRef, { displayOrder });
+  });
+  await Promise.all(updatePromises);
 }
