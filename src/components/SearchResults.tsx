@@ -86,6 +86,22 @@ export function SearchResults({
         >
           <CardContent className="p-4">
             <div className="flex items-start gap-3">
+              {/* 表紙画像 */}
+              <div className="w-12 h-16 bg-gray-100 rounded overflow-hidden shrink-0 flex items-center justify-center relative">
+                <BookOpen className="h-5 w-5 text-gray-300" />
+                {result.book.coverImage && (
+                  <img
+                    src={result.book.coverImage}
+                    alt=""
+                    className="absolute inset-0 w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                )}
+              </div>
+
+              {/* 検索結果タイプアイコン */}
               <div className="mt-1">
                 {result.type === 'book' ? (
                   <BookOpen className="h-5 w-5 text-blue-600" />
