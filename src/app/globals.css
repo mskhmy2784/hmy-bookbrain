@@ -123,3 +123,46 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ===========================================
+   選択ハイライト・タッチ操作のバグ対策
+   =========================================== */
+
+/* テキスト選択時のハイライト色を制御（青いバーの防止） */
+::selection {
+  background-color: rgba(37, 99, 235, 0.2);
+}
+
+::-moz-selection {
+  background-color: rgba(37, 99, 235, 0.2);
+}
+
+/* PWA/モバイルでのタップハイライトを無効化 */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ドラッグ操作時のゴースト要素対策 */
+[draggable="true"] {
+  -webkit-user-drag: element;
+}
+
+/* リスト要素の意図しない選択を防止 */
+.book-list-item {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* スクロール中の選択を防止（オプション） */
+.scrollable-list {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* iOS Safari での選択問題対策 */
+@supports (-webkit-touch-callout: none) {
+  .no-select-ios {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}

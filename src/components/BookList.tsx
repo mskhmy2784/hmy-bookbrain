@@ -34,7 +34,7 @@ export function BookList({ books, onBookClick }: BookListProps) {
           <div
             key={book.id}
             onClick={() => onBookClick(book)}
-            className={`flex items-center gap-3 py-3 px-2 hover:bg-gray-50 cursor-pointer rounded transition-colors ${
+            className={`book-list-item flex items-center gap-3 py-3 px-2 hover:bg-gray-50 cursor-pointer rounded transition-colors select-none ${
               isSold ? 'opacity-60' : ''
             }`}
           >
@@ -46,7 +46,8 @@ export function BookList({ books, onBookClick }: BookListProps) {
                 <img
                   src={book.coverImage}
                   alt=""
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover pointer-events-none"
+                  draggable={false}
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = 'none';
                   }}
