@@ -19,7 +19,13 @@ import {
 } from '@/lib/search';
 import { Book } from '@/types/book';
 import { Button } from '@/components/ui/button';
-import { BookOpen, Library, BookMarked, CheckCircle, Upload, X, Plus, PackageX } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { BookOpen, Library, BookMarked, CheckCircle, Upload, X, Plus, PackageX, MoreVertical } from 'lucide-react';
 
 const SEARCH_STATE_KEY = 'bookbrain_search_state';
 
@@ -193,25 +199,35 @@ export default function HomeContent() {
       {/* Header */}
       <header className="border-b bg-white sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-        <div className="flex items-center gap-2">
+          {/* 左側: 新規登録ボタン */}
+          <div className="flex items-center">
             {user && (
-              <>
-                <Button
-                  size="sm"
-                  onClick={() => router.push('/books/new')}
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  新規登録
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowImport(true)}
-                >
-                  <Upload className="h-4 w-4 mr-1" />
-                  インポート
-                </Button>
-              </>
+              <Button
+                size="sm"
+                onClick={() => router.push('/books/new')}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                新規登録
+              </Button>
+            )}
+          </div>
+          
+          {/* 右側: メニューとログイン */}
+          <div className="flex items-center gap-2">
+            {user && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setShowImport(true)}>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Excelからインポート
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
             <LoginButton />
           </div>

@@ -24,6 +24,8 @@ import {
   BookOpen,
   Loader2,
   ImageIcon,
+  Link2,
+  Check,
 } from 'lucide-react';
 
 const statusOptions = [
@@ -46,6 +48,7 @@ export default function BookDetailClient() {
   const [editedBook, setEditedBook] = useState<Partial<Book>>({});
   const [saving, setSaving] = useState(false);
   const [fetchingCover, setFetchingCover] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const fetchData = async () => {
     if (!user || !bookId) return;
@@ -162,6 +165,17 @@ export default function BookDetailClient() {
     setEditedBook((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleCopyLink = async () => {
+    const url = window.location.href;
+    try {
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -200,6 +214,23 @@ export default function BookDetailClient() {
               </>
             ) : (
               <>
+                <Button
+                  variant="outline"
+                  onClick={handleCopyLink}
+                  className={linkCopied ? 'bg-green-50 border-green-300' : ''}
+                >
+                  {linkCopied ? (
+                    <>
+                      <Check className="mr-2 h-4 w-4 text-green-600" />
+                      <span className="text-green-600">コピー完了</span>
+                    </>
+                  ) : (
+                    <>
+                      <Link2 className="mr-2 h-4 w-4" />
+                      リンク
+                    </>
+                  )}
+                </Button>
                 <Button variant="outline" onClick={handleStartEdit}>
                   <Edit className="mr-2 h-4 w-4" />
                   編集
