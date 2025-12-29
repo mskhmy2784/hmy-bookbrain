@@ -26,6 +26,8 @@ import {
   ImageIcon,
   Link2,
   Check,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 const statusOptions = [
@@ -49,6 +51,7 @@ export default function BookDetailClient() {
   const [saving, setSaving] = useState(false);
   const [fetchingCover, setFetchingCover] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
 
   const fetchData = async () => {
     if (!user || !bookId) return;
@@ -174,6 +177,27 @@ export default function BookDetailClient() {
     } catch (err) {
       console.error('Failed to copy:', err);
     }
+  };
+
+  // メモのアコーディオン開閉
+  const toggleNote = (noteId: string) => {
+    setExpandedNotes((prev) => {
+      const next = new Set(prev);
+      if (next.has(noteId)) {
+        next.delete(noteId);
+      } else {
+        next.add(noteId);
+      }
+      return next;
+    });
+  };
+
+  const expandAllNotes = () => {
+    setExpandedNotes(new Set(notes.map((n) => n.id!)));
+  };
+
+  const collapseAllNotes = () => {
+    setExpandedNotes(new Set());
   };
 
   if (loading) {
@@ -517,10 +541,34 @@ export default function BookDetailClient() {
             <CardHeader>
               <div className="flex justify-between items-center">
                 <CardTitle className="text-xl">📝 メモ ({notes.length}件)</CardTitle>
-                <Button onClick={() => router.push(`/books/${bookId}/notes/new`)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  メモを追加
-                </Button>
+                <div className="flex gap-2">
+                  {notes.length > 0 && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={expandAllNotes}
+                        disabled={expandedNotes.size === notes.length}
+                      >
+                        <ChevronDown className="h-4 w-4 mr-1" />
+                        すべて開く
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={collapseAllNotes}
+                        disabled={expandedNotes.size === 0}
+                      >
+                        <ChevronUp className="h-4 w-4 mr-1" />
+                        すべて閉じる
+                      </Button>
+                    </>
+                  )}
+                  <Button onClick={() => router.push(`/books/${bookId}/notes/new`)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    メモを追加
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -529,52 +577,70 @@ export default function BookDetailClient() {
                   まだメモがありません。「メモを追加」ボタンから追加できます。
                 </p>
               ) : (
-                <div className="space-y-6">
-                  {notes.map((note) => (
-                    <div
-                      key={note.id}
-                      className="border rounded-lg p-4 hover:shadow-md transition-shadow"
-                    >
-                      <div className="flex justify-between items-start mb-3">
-                        <div>
-                          {note.title && (
-                            <h4 className="font-semibold text-lg">{note.title}</h4>
-                          )}
-                          <div className="text-sm text-gray-500">
-                            {note.pageReference && (
-                              <span className="mr-4">📄 {note.pageReference}</span>
+                <div className="space-y-3">
+                  {notes.map((note) => {
+                    const isExpanded = expandedNotes.has(note.id!);
+                    return (
+                      <div
+                        key={note.id}
+                        className="border rounded-lg overflow-hidden"
+                      >
+                        {/* アコーディオンヘッダー */}
+                        <div
+                          className="flex justify-between items-center p-4 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => toggleNote(note.id!)}
+                        >
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            {isExpanded ? (
+                              <ChevronUp className="h-5 w-5 text-gray-500 shrink-0" />
+                            ) : (
+                              <ChevronDown className="h-5 w-5 text-gray-500 shrink-0" />
                             )}
-                            <span>
-                              {note.createdAt.toLocaleDateString('ja-JP', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric',
-                              })}
-                            </span>
+                            <div className="min-w-0">
+                              <h4 className="font-semibold truncate">
+                                {note.title || '無題のメモ'}
+                              </h4>
+                              <div className="text-sm text-gray-500">
+                                {note.pageReference && (
+                                  <span className="mr-4">📄 {note.pageReference}</span>
+                                )}
+                                <span>
+                                  {note.createdAt.toLocaleDateString('ja-JP', {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric',
+                                  })}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => router.push(`/books/${bookId}/notes/${note.id}/edit`)}
+                            >
+                              <Edit className="h-4 w-4 text-gray-500" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteNote(note.id!)}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => router.push(`/books/${bookId}/notes/${note.id}/edit`)}
-                          >
-                            <Edit className="h-4 w-4 text-gray-500" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteNote(note.id!)}
-                          >
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </div>
+                        
+                        {/* アコーディオンコンテンツ */}
+                        {isExpanded && (
+                          <div className="p-4 border-t bg-white">
+                            <MarkdownViewer content={note.content} />
+                          </div>
+                        )}
                       </div>
-                      <div className="border-t pt-3">
-                        <MarkdownViewer content={note.content} />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
