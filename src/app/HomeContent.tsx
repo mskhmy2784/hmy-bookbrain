@@ -9,8 +9,9 @@ import { BookList } from '@/components/BookList';
 import { SearchBox } from '@/components/SearchBox';
 import { SearchResults } from '@/components/SearchResults';
 import { BulkEditDialog } from '@/components/BulkEditDialog';
-import { getBooks, bulkUpdateBooks } from '@/lib/books';
+import { getBooks, bulkUpdateBooks, updateBook } from '@/lib/books';
 import { getAllNoteCounts } from '@/lib/notes';
+import { getTags, getTagColorClasses } from '@/lib/tags';
 import {
   searchAll,
   SearchOptions,
@@ -19,13 +20,13 @@ import {
   preloadSearchData,
   clearSearchCache,
 } from '@/lib/search';
-import { Book } from '@/types/book';
+import { Book, Tag } from '@/types/book';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { 
@@ -41,6 +42,7 @@ import {
   CheckSquare,
   Square,
   Edit3,
+  Tag as TagIcon,
 } from 'lucide-react';
 
 const SEARCH_STATE_KEY = 'bookbrain_search_state';
@@ -66,6 +68,10 @@ export default function HomeContent() {
   // メモ数の状態
   const [noteCounts, setNoteCounts] = useState<Map<string, number>>(new Map());
   
+  // タグ関連
+  const [allTags, setAllTags] = useState<Tag[]>([]);
+  const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
+  
   // 選択モード
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedBooks, setSelectedBooks] = useState<Set<string>>(new Set());
@@ -83,8 +89,12 @@ export default function HomeContent() {
     if (!user) return;
     setLoadingBooks(true);
     try {
-      const data = await getBooks(user.uid);
+      const [data, tags] = await Promise.all([
+        getBooks(user.uid),
+        getTags(user.uid),
+      ]);
       setBooks(data);
+      setAllTags(tags);
       preloadSearchData(user.uid);
       
       // メモ数を取得
@@ -151,6 +161,7 @@ export default function HomeContent() {
     setSearchQuery(query);
     setSearchOptions(options);
     setFilter(null);
+    setSelectedTagFilter(null);
 
     if (!query.trim()) {
       setSearched(false);
@@ -178,16 +189,29 @@ export default function HomeContent() {
     setSearchQuery('');
     setSearchResults([]);
     setFilter(null);
+    setSelectedTagFilter(null);
     sessionStorage.removeItem(SEARCH_STATE_KEY);
   };
 
   const handleFilterClick = (newFilter: FilterType) => {
     setSearched(false);
     setSearchQuery('');
+    setSelectedTagFilter(null);
     if (filter === newFilter) {
       setFilter(null);
     } else {
       setFilter(newFilter);
+    }
+  };
+
+  const handleTagFilterClick = (tagName: string) => {
+    setSearched(false);
+    setSearchQuery('');
+    if (selectedTagFilter === tagName) {
+      setSelectedTagFilter(null);
+    } else {
+      setSelectedTagFilter(tagName);
+      setFilter('all'); // タグフィルタ時は全書籍対象
     }
   };
 
@@ -224,11 +248,27 @@ export default function HomeContent() {
   };
 
   // 一括編集の保存
-  const handleBulkSave = async (updates: Partial<Book>, fieldsToUpdate: string[]) => {
+  const handleBulkSave = async (updates: Partial<Book>, fieldsToUpdate: string[], tagsToAdd?: string[]) => {
     if (!user || selectedBooks.size === 0) return;
 
     const bookIds = Array.from(selectedBooks);
-    await bulkUpdateBooks(user.uid, bookIds, updates);
+    
+    // 通常の属性更新
+    if (fieldsToUpdate.length > 0) {
+      await bulkUpdateBooks(user.uid, bookIds, updates);
+    }
+    
+    // タグ追加（各書籍の既存タグに追加）
+    if (tagsToAdd && tagsToAdd.length > 0) {
+      for (const bookId of bookIds) {
+        const book = books.find(b => b.id === bookId);
+        if (book) {
+          const existingTags = book.tags || [];
+          const newTags = [...new Set([...existingTags, ...tagsToAdd])];
+          await updateBook(user.uid, bookId, { tags: newTags });
+        }
+      }
+    }
     
     // データを再取得
     await fetchBooksData();
@@ -251,8 +291,15 @@ export default function HomeContent() {
   // フィルタリング＆ソートされた書籍
   const filteredBooks = books
     .filter((book) => {
-      if (filter === null || filter === 'all') return true;
-      return book.readingStatus === filter;
+      // ステータスフィルタ
+      if (filter !== null && filter !== 'all') {
+        if (book.readingStatus !== filter) return false;
+      }
+      // タグフィルタ
+      if (selectedTagFilter) {
+        if (!book.tags || !book.tags.includes(selectedTagFilter)) return false;
+      }
+      return true;
     })
     .sort((a, b) => {
       const isbnA = a.isbn13 || '';
@@ -265,6 +312,9 @@ export default function HomeContent() {
 
   // フィルタのラベルを取得
   const getFilterLabel = () => {
+    if (selectedTagFilter) {
+      return `タグ: ${selectedTagFilter}`;
+    }
     switch (filter) {
       case 'all': return '全ての蔵書';
       case 'reading': return '読書中の書籍';
@@ -274,27 +324,27 @@ export default function HomeContent() {
     }
   };
 
-  const showBookList = filter !== null;
+  const showBookList = filter !== null || selectedTagFilter !== null;
+
+  // 使用中のタグを集計
+  const usedTags = allTags.filter(tag => 
+    books.some(book => book.tags?.includes(tag.name))
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
       {/* Header */}
       <header className="border-b bg-white sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          {/* 左側: 新規登録ボタン */}
           <div className="flex items-center">
             {user && (
-              <Button
-                size="sm"
-                onClick={() => router.push('/books/new')}
-              >
+              <Button size="sm" onClick={() => router.push('/books/new')}>
                 <Plus className="h-4 w-4 mr-1" />
                 新規登録
               </Button>
             )}
           </div>
           
-          {/* 右側: メニューとログイン */}
           <div className="flex items-center gap-2">
             {user && (
               <DropdownMenu>
@@ -343,11 +393,7 @@ export default function HomeContent() {
                       ({searchResults.length}件)
                     </span>
                   </h2>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleLogoClick}
-                  >
+                  <Button variant="outline" size="sm" onClick={handleLogoClick}>
                     <X className="h-4 w-4 mr-1" />
                     検索をクリア
                   </Button>
@@ -368,9 +414,7 @@ export default function HomeContent() {
                     <button
                       onClick={() => handleFilterClick('all')}
                       className={`flex items-center gap-2 px-3 py-1 rounded-full transition-colors ${
-                        filter === 'all'
-                          ? 'bg-blue-100 text-blue-700'
-                          : 'hover:bg-gray-100'
+                        filter === 'all' && !selectedTagFilter ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'
                       }`}
                     >
                       <Library className="h-5 w-5 text-blue-600" />
@@ -381,9 +425,7 @@ export default function HomeContent() {
                     <button
                       onClick={() => handleFilterClick('reading')}
                       className={`flex items-center gap-2 px-3 py-1 rounded-full transition-colors ${
-                        filter === 'reading'
-                          ? 'bg-orange-100 text-orange-700'
-                          : 'hover:bg-gray-100'
+                        filter === 'reading' ? 'bg-orange-100 text-orange-700' : 'hover:bg-gray-100'
                       }`}
                     >
                       <BookMarked className="h-5 w-5 text-orange-500" />
@@ -394,9 +436,7 @@ export default function HomeContent() {
                     <button
                       onClick={() => handleFilterClick('completed')}
                       className={`flex items-center gap-2 px-3 py-1 rounded-full transition-colors ${
-                        filter === 'completed'
-                          ? 'bg-green-100 text-green-700'
-                          : 'hover:bg-gray-100'
+                        filter === 'completed' ? 'bg-green-100 text-green-700' : 'hover:bg-gray-100'
                       }`}
                     >
                       <CheckCircle className="h-5 w-5 text-green-500" />
@@ -407,9 +447,7 @@ export default function HomeContent() {
                     <button
                       onClick={() => handleFilterClick('sold')}
                       className={`flex items-center gap-2 px-3 py-1 rounded-full transition-colors ${
-                        filter === 'sold'
-                          ? 'bg-red-100 text-red-700'
-                          : 'hover:bg-gray-100'
+                        filter === 'sold' ? 'bg-red-100 text-red-700' : 'hover:bg-gray-100'
                       }`}
                     >
                       <PackageX className="h-5 w-5 text-red-500" />
@@ -417,6 +455,34 @@ export default function HomeContent() {
                       <span className="font-bold text-lg">{stats.sold}</span>
                     </button>
                   </div>
+                  
+                  {/* タグフィルター */}
+                  {usedTags.length > 0 && (
+                    <div className="mt-4 pt-4 border-t">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <TagIcon className="h-4 w-4 text-gray-400" />
+                        {usedTags.map((tag) => {
+                          const colors = getTagColorClasses(tag.color);
+                          const isSelected = selectedTagFilter === tag.name;
+                          const count = books.filter(b => b.tags?.includes(tag.name)).length;
+                          return (
+                            <Badge
+                              key={tag.id}
+                              className={`cursor-pointer ${
+                                isSelected 
+                                  ? `${colors.bg} ${colors.text}` 
+                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              }`}
+                              onClick={() => handleTagFilterClick(tag.name)}
+                            >
+                              {tag.name}
+                              <span className="ml-1 opacity-60">({count})</span>
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* 書籍がない場合のインポート案内 */}
@@ -436,11 +502,7 @@ export default function HomeContent() {
                   <div className="bg-white rounded-lg shadow p-6">
                     <div className="flex justify-between items-center mb-4">
                       <h3 className="font-semibold">Excelからインポート</h3>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowImport(false)}
-                      >
+                      <Button variant="ghost" size="sm" onClick={() => setShowImport(false)}>
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
@@ -455,7 +517,7 @@ export default function HomeContent() {
                   </div>
                 )}
 
-                {/* 書籍一覧（フィルタ選択時のみ表示） */}
+                {/* 書籍一覧 */}
                 {showBookList && books.length > 0 && (
                   <div className="bg-white rounded-lg shadow">
                     <div className="px-4 py-3 border-b flex justify-between items-center">
@@ -466,7 +528,6 @@ export default function HomeContent() {
                         </span>
                       </h2>
                       <div className="flex items-center gap-2">
-                        {/* 選択モードボタン */}
                         <Button
                           variant={selectionMode ? "default" : "outline"}
                           size="sm"
@@ -475,18 +536,13 @@ export default function HomeContent() {
                           <CheckSquare className="h-4 w-4 mr-1" />
                           {selectionMode ? '選択中' : '選択'}
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setFilter(null)}
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => { setFilter(null); setSelectedTagFilter(null); }}>
                           <X className="h-4 w-4 mr-1" />
                           閉じる
                         </Button>
                       </div>
                     </div>
                     
-                    {/* 選択モード時のツールバー */}
                     {selectionMode && (
                       <div className="px-4 py-2 bg-blue-50 border-b flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -497,15 +553,9 @@ export default function HomeContent() {
                             className="text-blue-700 hover:text-blue-800"
                           >
                             {selectedBooks.size === filteredBooks.length ? (
-                              <>
-                                <Square className="h-4 w-4 mr-1" />
-                                全解除
-                              </>
+                              <><Square className="h-4 w-4 mr-1" />全解除</>
                             ) : (
-                              <>
-                                <CheckSquare className="h-4 w-4 mr-1" />
-                                全選択
-                              </>
+                              <><CheckSquare className="h-4 w-4 mr-1" />全選択</>
                             )}
                           </Button>
                           <span className="text-sm text-blue-700">
@@ -533,6 +583,7 @@ export default function HomeContent() {
                           books={filteredBooks}
                           onBookClick={(book) => router.push(`/books/${book.id}`)}
                           noteCounts={noteCounts}
+                          allTags={allTags}
                           selectionMode={selectionMode}
                           selectedBooks={selectedBooks}
                           onSelectionChange={handleSelectionChange}
@@ -563,12 +614,15 @@ export default function HomeContent() {
       </main>
 
       {/* 一括編集ダイアログ */}
-      <BulkEditDialog
-        open={showBulkEditDialog}
-        onOpenChange={setShowBulkEditDialog}
-        selectedCount={selectedBooks.size}
-        onSave={handleBulkSave}
-      />
+      {user && (
+        <BulkEditDialog
+          open={showBulkEditDialog}
+          onOpenChange={setShowBulkEditDialog}
+          selectedCount={selectedBooks.size}
+          userId={user.uid}
+          onSave={handleBulkSave}
+        />
+      )}
     </div>
   );
 }

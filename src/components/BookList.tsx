@@ -1,14 +1,16 @@
 'use client';
 
-import { Book } from '@/types/book';
+import { Book, Tag } from '@/types/book';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { getTagColorClasses } from '@/lib/tags';
 import { BookOpen, StickyNote, Smartphone, BookText } from 'lucide-react';
 
 interface BookListProps {
   books: Book[];
   onBookClick: (book: Book) => void;
   noteCounts?: Map<string, number>;
+  allTags?: Tag[];
   // 選択モード用
   selectionMode?: boolean;
   selectedBooks?: Set<string>;
@@ -26,6 +28,7 @@ export function BookList({
   books, 
   onBookClick, 
   noteCounts,
+  allTags = [],
   selectionMode = false,
   selectedBooks = new Set(),
   onSelectionChange,
@@ -47,12 +50,19 @@ export function BookList({
     }
   };
 
+  const getColorForTag = (tagName: string) => {
+    const tag = allTags.find(t => t.name === tagName);
+    return getTagColorClasses(tag?.color);
+  };
+
   return (
     <div className="divide-y">
       {books.map((book) => {
         const isSold = book.readingStatus === 'sold';
         const noteCount = noteCounts?.get(book.id!) || 0;
         const isSelected = selectedBooks.has(book.id!);
+        const displayTags = (book.tags || []).slice(0, 2);
+        const remainingTags = (book.tags || []).length - displayTags.length;
         
         return (
           <div
@@ -105,7 +115,7 @@ export function BookList({
               )}
             </div>
 
-            {/* タイトル・著者 */}
+            {/* タイトル・著者・タグ */}
             <div className="flex-1 min-w-0">
               <h3 className={`font-medium truncate ${isSold ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
                 {book.title}
@@ -124,6 +134,27 @@ export function BookList({
                   </span>
                 )}
               </div>
+              {/* タグ表示 */}
+              {displayTags.length > 0 && (
+                <div className="flex items-center gap-1 mt-1">
+                  {displayTags.map((tagName) => {
+                    const colors = getColorForTag(tagName);
+                    return (
+                      <Badge
+                        key={tagName}
+                        className={`${colors.bg} ${colors.text} text-xs px-1.5 py-0`}
+                      >
+                        {tagName}
+                      </Badge>
+                    );
+                  })}
+                  {remainingTags > 0 && (
+                    <Badge className="bg-gray-100 text-gray-500 text-xs px-1.5 py-0">
+                      +{remainingTags}
+                    </Badge>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* ステータス */}
