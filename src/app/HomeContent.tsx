@@ -8,7 +8,8 @@ import { ImportBooks } from '@/components/ImportBooks';
 import { BookList } from '@/components/BookList';
 import { SearchBox } from '@/components/SearchBox';
 import { SearchResults } from '@/components/SearchResults';
-import { getBooks, setAllBooksAsPaper } from '@/lib/books';
+import { BulkEditDialog } from '@/components/BulkEditDialog';
+import { getBooks, bulkUpdateBooks } from '@/lib/books';
 import { getAllNoteCounts } from '@/lib/notes';
 import {
   searchAll,
@@ -27,7 +28,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { BookOpen, Library, BookMarked, CheckCircle, Upload, X, Plus, PackageX, MoreVertical, BookText, Loader2 } from 'lucide-react';
+import { 
+  BookOpen, 
+  Library, 
+  BookMarked, 
+  CheckCircle, 
+  Upload, 
+  X, 
+  Plus, 
+  PackageX, 
+  MoreVertical, 
+  CheckSquare,
+  Square,
+  Edit3,
+} from 'lucide-react';
 
 const SEARCH_STATE_KEY = 'bookbrain_search_state';
 
@@ -52,8 +66,10 @@ export default function HomeContent() {
   // メモ数の状態
   const [noteCounts, setNoteCounts] = useState<Map<string, number>>(new Map());
   
-  // 一括更新中の状態
-  const [bulkUpdating, setBulkUpdating] = useState(false);
+  // 選択モード
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedBooks, setSelectedBooks] = useState<Set<string>>(new Set());
+  const [showBulkEditDialog, setShowBulkEditDialog] = useState(false);
 
   // 検索状態
   const [searchQuery, setSearchQuery] = useState('');
@@ -175,33 +191,54 @@ export default function HomeContent() {
     }
   };
 
-  // すべての書籍を紙書籍に設定
-  const handleSetAllAsPaper = async () => {
-    if (!user) return;
+  // 選択モードの切り替え
+  const toggleSelectionMode = () => {
+    if (selectionMode) {
+      setSelectionMode(false);
+      setSelectedBooks(new Set());
+    } else {
+      setSelectionMode(true);
+    }
+  };
+
+  // 書籍の選択/解除
+  const handleSelectionChange = (bookId: string, selected: boolean) => {
+    setSelectedBooks(prev => {
+      const next = new Set(prev);
+      if (selected) {
+        next.add(bookId);
+      } else {
+        next.delete(bookId);
+      }
+      return next;
+    });
+  };
+
+  // 全選択/全解除
+  const handleSelectAll = () => {
+    if (selectedBooks.size === filteredBooks.length) {
+      setSelectedBooks(new Set());
+    } else {
+      setSelectedBooks(new Set(filteredBooks.map(b => b.id!)));
+    }
+  };
+
+  // 一括編集の保存
+  const handleBulkSave = async (updates: Partial<Book>, fieldsToUpdate: string[]) => {
+    if (!user || selectedBooks.size === 0) return;
+
+    const bookIds = Array.from(selectedBooks);
+    await bulkUpdateBooks(user.uid, bookIds, updates);
     
-    const booksWithoutFormat = books.filter(book => !book.format);
-    if (booksWithoutFormat.length === 0) {
-      alert('すべての書籍に既に形式が設定されています。');
-      return;
-    }
-
-    if (!confirm(`形式が未設定の ${booksWithoutFormat.length} 冊を「紙の書籍」に設定しますか？`)) {
-      return;
-    }
-
-    setBulkUpdating(true);
-    try {
-      const count = await setAllBooksAsPaper(user.uid);
-      alert(`${count} 冊を紙の書籍に設定しました。`);
-      // データを再取得
-      await fetchBooksData();
-      clearSearchCache();
-    } catch (error) {
-      console.error('Error bulk updating:', error);
-      alert('一括更新中にエラーが発生しました。');
-    } finally {
-      setBulkUpdating(false);
-    }
+    // データを再取得
+    await fetchBooksData();
+    clearSearchCache();
+    
+    // 選択モードを終了
+    setSelectionMode(false);
+    setSelectedBooks(new Set());
+    
+    alert(`${bookIds.length}冊を更新しました`);
   };
 
   const stats = {
@@ -239,9 +276,6 @@ export default function HomeContent() {
 
   const showBookList = filter !== null;
 
-  // 形式未設定の書籍数
-  const booksWithoutFormat = books.filter(book => !book.format).length;
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
       {/* Header */}
@@ -273,21 +307,6 @@ export default function HomeContent() {
                   <DropdownMenuItem onClick={() => setShowImport(true)}>
                     <Upload className="h-4 w-4 mr-2" />
                     Excelからインポート
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem 
-                    onClick={handleSetAllAsPaper}
-                    disabled={bulkUpdating || booksWithoutFormat === 0}
-                  >
-                    {bulkUpdating ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <BookText className="h-4 w-4 mr-2" />
-                    )}
-                    すべて紙書籍に設定
-                    {booksWithoutFormat > 0 && (
-                      <span className="ml-1 text-xs text-gray-500">({booksWithoutFormat}冊)</span>
-                    )}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -446,15 +465,64 @@ export default function HomeContent() {
                           ({filteredBooks.length}冊)
                         </span>
                       </h2>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setFilter(null)}
-                      >
-                        <X className="h-4 w-4 mr-1" />
-                        閉じる
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        {/* 選択モードボタン */}
+                        <Button
+                          variant={selectionMode ? "default" : "outline"}
+                          size="sm"
+                          onClick={toggleSelectionMode}
+                        >
+                          <CheckSquare className="h-4 w-4 mr-1" />
+                          {selectionMode ? '選択中' : '選択'}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setFilter(null)}
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          閉じる
+                        </Button>
+                      </div>
                     </div>
+                    
+                    {/* 選択モード時のツールバー */}
+                    {selectionMode && (
+                      <div className="px-4 py-2 bg-blue-50 border-b flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleSelectAll}
+                            className="text-blue-700 hover:text-blue-800"
+                          >
+                            {selectedBooks.size === filteredBooks.length ? (
+                              <>
+                                <Square className="h-4 w-4 mr-1" />
+                                全解除
+                              </>
+                            ) : (
+                              <>
+                                <CheckSquare className="h-4 w-4 mr-1" />
+                                全選択
+                              </>
+                            )}
+                          </Button>
+                          <span className="text-sm text-blue-700">
+                            {selectedBooks.size}冊を選択中
+                          </span>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => setShowBulkEditDialog(true)}
+                          disabled={selectedBooks.size === 0}
+                        >
+                          <Edit3 className="h-4 w-4 mr-1" />
+                          一括編集
+                        </Button>
+                      </div>
+                    )}
+                    
                     <div className="p-4">
                       {loadingBooks ? (
                         <p className="text-center py-8 text-gray-500">読み込み中...</p>
@@ -465,6 +533,9 @@ export default function HomeContent() {
                           books={filteredBooks}
                           onBookClick={(book) => router.push(`/books/${book.id}`)}
                           noteCounts={noteCounts}
+                          selectionMode={selectionMode}
+                          selectedBooks={selectedBooks}
+                          onSelectionChange={handleSelectionChange}
                         />
                       )}
                     </div>
@@ -490,6 +561,14 @@ export default function HomeContent() {
           </div>
         )}
       </main>
+
+      {/* 一括編集ダイアログ */}
+      <BulkEditDialog
+        open={showBulkEditDialog}
+        onOpenChange={setShowBulkEditDialog}
+        selectedCount={selectedBooks.size}
+        onSave={handleBulkSave}
+      />
     </div>
   );
 }

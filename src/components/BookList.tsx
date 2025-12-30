@@ -2,12 +2,17 @@
 
 import { Book } from '@/types/book';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { BookOpen, StickyNote, Smartphone, BookText } from 'lucide-react';
 
 interface BookListProps {
   books: Book[];
   onBookClick: (book: Book) => void;
   noteCounts?: Map<string, number>;
+  // 選択モード用
+  selectionMode?: boolean;
+  selectedBooks?: Set<string>;
+  onSelectionChange?: (bookId: string, selected: boolean) => void;
 }
 
 const statusConfig = {
@@ -17,7 +22,14 @@ const statusConfig = {
   sold: { label: '売却済み', color: 'bg-red-100 text-red-700' },
 };
 
-export function BookList({ books, onBookClick, noteCounts }: BookListProps) {
+export function BookList({ 
+  books, 
+  onBookClick, 
+  noteCounts,
+  selectionMode = false,
+  selectedBooks = new Set(),
+  onSelectionChange,
+}: BookListProps) {
   if (books.length === 0) {
     return (
       <p className="text-center text-gray-500 py-8">
@@ -26,20 +38,42 @@ export function BookList({ books, onBookClick, noteCounts }: BookListProps) {
     );
   }
 
+  const handleItemClick = (book: Book, e: React.MouseEvent) => {
+    if (selectionMode && onSelectionChange) {
+      e.preventDefault();
+      onSelectionChange(book.id!, !selectedBooks.has(book.id!));
+    } else {
+      onBookClick(book);
+    }
+  };
+
   return (
     <div className="divide-y">
       {books.map((book) => {
         const isSold = book.readingStatus === 'sold';
         const noteCount = noteCounts?.get(book.id!) || 0;
+        const isSelected = selectedBooks.has(book.id!);
         
         return (
           <div
             key={book.id}
-            onClick={() => onBookClick(book)}
+            onClick={(e) => handleItemClick(book, e)}
             className={`book-list-item flex items-center gap-3 py-3 px-2 hover:bg-gray-50 cursor-pointer rounded transition-colors select-none ${
               isSold ? 'opacity-60' : ''
-            }`}
+            } ${isSelected ? 'bg-blue-50 hover:bg-blue-100' : ''}`}
           >
+            {/* チェックボックス（選択モード時のみ） */}
+            {selectionMode && (
+              <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                <Checkbox
+                  checked={isSelected}
+                  onCheckedChange={(checked) => {
+                    onSelectionChange?.(book.id!, checked === true);
+                  }}
+                />
+              </div>
+            )}
+
             {/* サムネイル */}
             <div className={`relative w-10 h-14 bg-gray-100 rounded overflow-hidden shrink-0 flex items-center justify-center ${
               isSold ? 'grayscale' : ''
