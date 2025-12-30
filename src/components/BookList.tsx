@@ -2,11 +2,12 @@
 
 import { Book } from '@/types/book';
 import { Badge } from '@/components/ui/badge';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, StickyNote } from 'lucide-react';
 
 interface BookListProps {
   books: Book[];
   onBookClick: (book: Book) => void;
+  noteCounts?: Map<string, number>;
 }
 
 const statusConfig = {
@@ -16,7 +17,7 @@ const statusConfig = {
   sold: { label: '売却済み', color: 'bg-red-100 text-red-700' },
 };
 
-export function BookList({ books, onBookClick }: BookListProps) {
+export function BookList({ books, onBookClick, noteCounts }: BookListProps) {
   if (books.length === 0) {
     return (
       <p className="text-center text-gray-500 py-8">
@@ -29,6 +30,7 @@ export function BookList({ books, onBookClick }: BookListProps) {
     <div className="divide-y">
       {books.map((book) => {
         const isSold = book.readingStatus === 'sold';
+        const noteCount = noteCounts?.get(book.id!) || 0;
         
         return (
           <div
@@ -62,11 +64,20 @@ export function BookList({ books, onBookClick }: BookListProps) {
               <h3 className={`font-medium truncate ${isSold ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
                 {book.title}
               </h3>
-              {book.author && (
-                <p className="text-sm text-gray-500 truncate">
-                  {book.author}
-                </p>
-              )}
+              <div className="flex items-center gap-2">
+                {book.author && (
+                  <p className="text-sm text-gray-500 truncate">
+                    {book.author}
+                  </p>
+                )}
+                {/* メモ数表示 */}
+                {noteCount > 0 && (
+                  <span className="flex items-center gap-0.5 text-xs text-amber-600 shrink-0">
+                    <StickyNote className="h-3 w-3" />
+                    {noteCount}
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* ステータス */}

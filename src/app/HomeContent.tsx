@@ -9,6 +9,7 @@ import { BookList } from '@/components/BookList';
 import { SearchBox } from '@/components/SearchBox';
 import { SearchResults } from '@/components/SearchResults';
 import { getBooks } from '@/lib/books';
+import { getAllNoteCounts } from '@/lib/notes';
 import {
   searchAll,
   SearchOptions,
@@ -46,6 +47,9 @@ export default function HomeContent() {
   const [loadingBooks, setLoadingBooks] = useState(false);
   const [filter, setFilter] = useState<FilterType>('all');
   const [showImport, setShowImport] = useState(false);
+  
+  // メモ数の状態
+  const [noteCounts, setNoteCounts] = useState<Map<string, number>>(new Map());
 
   // 検索状態
   const [searchQuery, setSearchQuery] = useState('');
@@ -63,6 +67,13 @@ export default function HomeContent() {
         const data = await getBooks(user.uid);
         setBooks(data);
         preloadSearchData(user.uid);
+        
+        // メモ数を取得
+        if (data.length > 0) {
+          const bookIds = data.map(book => book.id!).filter(Boolean);
+          const counts = await getAllNoteCounts(user.uid, bookIds);
+          setNoteCounts(counts);
+        }
       } catch (error) {
         console.error('Error fetching books:', error);
       } finally {
@@ -401,6 +412,7 @@ export default function HomeContent() {
                         <BookList
                           books={filteredBooks}
                           onBookClick={(book) => router.push(`/books/${book.id}`)}
+                          noteCounts={noteCounts}
                         />
                       )}
                     </div>

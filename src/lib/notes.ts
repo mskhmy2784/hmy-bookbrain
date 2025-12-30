@@ -8,6 +8,7 @@ import {
   query,
   orderBy,
   Timestamp,
+  getCountFromServer,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Note } from '@/types/book';
@@ -102,4 +103,31 @@ export async function updateNotesOrder(
     return updateDoc(noteRef, { displayOrder });
   });
   await Promise.all(updatePromises);
+}
+
+// 全書籍のメモ数を一括取得
+export async function getAllNoteCounts(
+  userId: string,
+  bookIds: string[]
+): Promise<Map<string, number>> {
+  const noteCounts = new Map<string, number>();
+
+  // 並列で各書籍のメモ数を取得
+  const countPromises = bookIds.map(async (bookId) => {
+    try {
+      const notesRef = getNotesCollection(userId, bookId);
+      const snapshot = await getCountFromServer(notesRef);
+      return { bookId, count: snapshot.data().count };
+    } catch (error) {
+      console.error(`Error getting note count for book ${bookId}:`, error);
+      return { bookId, count: 0 };
+    }
+  });
+
+  const results = await Promise.all(countPromises);
+  results.forEach(({ bookId, count }) => {
+    noteCounts.set(bookId, count);
+  });
+
+  return noteCounts;
 }
