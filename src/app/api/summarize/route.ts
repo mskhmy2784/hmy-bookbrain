@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
-
-const anthropic = new Anthropic();
 
 export async function POST(request: NextRequest) {
   try {
+    // 環境変数チェック
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      console.error('ANTHROPIC_API_KEY is not set');
+      return NextResponse.json(
+        { error: 'API key not configured' },
+        { status: 500 }
+      );
+    }
+
     const { bookTitle, bookAuthor, notes } = await request.json();
 
     if (!notes || notes.length === 0) {
@@ -38,18 +45,38 @@ ${notesText}
 
 日本語で、簡潔かつ分かりやすく要約してください。`;
 
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1500,
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
+    // Claude API を直接呼び出し
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1500,
+        messages: [
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+      }),
     });
 
-    const content = message.content[0];
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Anthropic API error:', response.status, errorText);
+      return NextResponse.json(
+        { error: `API error: ${response.status}` },
+        { status: 500 }
+      );
+    }
+
+    const data = await response.json();
+    const content = data.content[0];
+    
     if (content.type !== 'text') {
       throw new Error('Unexpected response type');
     }
