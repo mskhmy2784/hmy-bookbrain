@@ -10,6 +10,7 @@ import {
   orderBy,
   serverTimestamp,
   Timestamp,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Book } from '@/types/book';
@@ -139,4 +140,49 @@ export async function findBookByISBN(userId: string, isbn: string): Promise<Book
   }
   
   return null;
+}
+
+// 複数の書籍を一括更新
+export async function bulkUpdateBooks(
+  userId: string, 
+  bookIds: string[], 
+  updates: Partial<Book>
+): Promise<number> {
+  const batch = writeBatch(db);
+  const cleanedUpdates = removeUndefined({
+    ...updates,
+    updatedAt: serverTimestamp(),
+  });
+
+  // Firestoreのバッチは500件まで
+  const batchSize = 500;
+  let updatedCount = 0;
+
+  for (let i = 0; i < bookIds.length; i += batchSize) {
+    const chunk = bookIds.slice(i, i + batchSize);
+    const chunkBatch = writeBatch(db);
+
+    for (const bookId of chunk) {
+      const bookRef = doc(db, 'users', userId, 'books', bookId);
+      chunkBatch.update(bookRef, cleanedUpdates);
+    }
+
+    await chunkBatch.commit();
+    updatedCount += chunk.length;
+  }
+
+  return updatedCount;
+}
+
+// formatが未設定の書籍を一括で紙書籍に設定
+export async function setAllBooksAsPaper(userId: string): Promise<number> {
+  const books = await getBooks(userId);
+  const booksWithoutFormat = books.filter(book => !book.format);
+  
+  if (booksWithoutFormat.length === 0) {
+    return 0;
+  }
+
+  const bookIds = booksWithoutFormat.map(book => book.id!);
+  return await bulkUpdateBooks(userId, bookIds, { format: 'paper' });
 }

@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import {
   ArrowLeft,
   Save,
@@ -18,7 +19,14 @@ import {
   BookOpen,
   ImageIcon,
   AlertTriangle,
+  BookText,
+  Smartphone,
 } from 'lucide-react';
+
+const formatOptions = [
+  { value: 'paper', label: '紙の書籍', icon: BookText, color: 'bg-amber-100 text-amber-800' },
+  { value: 'ebook', label: '電子書籍', icon: Smartphone, color: 'bg-purple-100 text-purple-800' },
+];
 
 export default function NewBookClient() {
   const router = useRouter();
@@ -36,6 +44,7 @@ export default function NewBookClient() {
   const [ndc, setNdc] = useState('');
   const [location, setLocation] = useState('');
   const [coverImage, setCoverImage] = useState('');
+  const [format, setFormat] = useState<'paper' | 'ebook'>('paper');
 
   const [saving, setSaving] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -123,6 +132,7 @@ export default function NewBookClient() {
         location: location.trim() || undefined,
         coverImage: coverImage.trim() || undefined,
         readingStatus: 'unread',
+        format: format,
       });
 
       if (newBook && newBook.id) {
@@ -247,6 +257,30 @@ export default function NewBookClient() {
                       placeholder="サブタイトル（任意）"
                       className="mt-1 bg-white"
                     />
+                  </div>
+
+                  {/* 書籍形式 */}
+                  <div>
+                    <Label className="mb-2 block">書籍形式</Label>
+                    <div className="flex gap-2">
+                      {formatOptions.map((opt) => {
+                        const Icon = opt.icon;
+                        return (
+                          <Badge
+                            key={opt.value}
+                            className={`cursor-pointer flex items-center gap-1 px-3 py-1.5 ${
+                              format === opt.value
+                                ? opt.color
+                                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                            }`}
+                            onClick={() => setFormat(opt.value as 'paper' | 'ebook')}
+                          >
+                            <Icon className="h-4 w-4" />
+                            {opt.label}
+                          </Badge>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

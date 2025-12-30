@@ -30,6 +30,8 @@ import {
   ChevronUp,
   ArrowUp,
   ArrowDown,
+  BookText,
+  Smartphone,
 } from 'lucide-react';
 
 const statusOptions = [
@@ -37,6 +39,11 @@ const statusOptions = [
   { value: 'reading', label: '読書中', color: 'bg-blue-100 text-blue-800' },
   { value: 'completed', label: '読了', color: 'bg-green-100 text-green-800' },
   { value: 'sold', label: '売却済み', color: 'bg-red-100 text-red-800' },
+];
+
+const formatOptions = [
+  { value: 'paper', label: '紙の書籍', icon: BookText, color: 'bg-amber-100 text-amber-800' },
+  { value: 'ebook', label: '電子書籍', icon: Smartphone, color: 'bg-purple-100 text-purple-800' },
 ];
 
 export default function BookDetailClient() {
@@ -137,6 +144,17 @@ export default function BookDetailClient() {
       setEditedBook((prev) => ({ ...prev, readingStatus: newStatus }));
     } catch (error) {
       console.error('Error updating status:', error);
+    }
+  };
+
+  const handleFormatChange = async (newFormat: 'paper' | 'ebook') => {
+    if (!user || !bookId) return;
+    try {
+      await updateBook(user.uid, bookId, { format: newFormat });
+      setBook({ ...book, format: newFormat } as Book);
+      setEditedBook((prev) => ({ ...prev, format: newFormat }));
+    } catch (error) {
+      console.error('Error updating format:', error);
     }
   };
 
@@ -293,12 +311,12 @@ export default function BookDetailClient() {
                   {linkCopied ? (
                     <>
                       <Check className="mr-2 h-4 w-4 text-green-600" />
-                      <span className="text-green-600">コピー完了</span>
+                      コピー完了
                     </>
                   ) : (
                     <>
                       <Link2 className="mr-2 h-4 w-4" />
-                      リンク
+                      リンクをコピー
                     </>
                   )}
                 </Button>
@@ -316,30 +334,24 @@ export default function BookDetailClient() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto space-y-6">
+      <main className="container mx-auto px-4 py-6">
+        <div className="space-y-6 max-w-4xl mx-auto">
           <Card>
             <CardHeader>
               <div className="flex gap-6">
-                <div className="shrink-0">
-                  <div className="w-32 h-48 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
-                    {(isEditing ? editedBook.coverImage : book.coverImage) ? (
+                {/* 表紙画像 */}
+                <div className="shrink-0 w-32">
+                  <div className="w-32 h-44 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
+                    {book.coverImage ? (
                       <img
-                        src={isEditing ? editedBook.coverImage : book.coverImage}
-                        alt="表紙"
+                        src={book.coverImage}
+                        alt={book.title}
                         className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none';
-                        }}
                       />
                     ) : (
-                      <div className="text-center text-gray-400">
-                        <BookOpen className="h-8 w-8 mx-auto mb-1" />
-                        <p className="text-xs">表紙なし</p>
-                      </div>
+                      <BookOpen className="h-12 w-12 text-gray-300" />
                     )}
                   </div>
-                  
                   {isEditing ? (
                     <Input
                       value={editedBook.coverImage || ''}
@@ -399,20 +411,49 @@ export default function BookDetailClient() {
                       )}
                     </div>
                   </div>
-                  <div className="flex gap-2 mt-4 flex-wrap">
-                    {statusOptions.map((status) => (
-                      <Badge
-                        key={status.value}
-                        className={`cursor-pointer ${
-                          book.readingStatus === status.value
-                            ? status.color
-                            : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
-                        }`}
-                        onClick={() => handleStatusChange(status.value as any)}
-                      >
-                        {status.label}
-                      </Badge>
-                    ))}
+                  
+                  {/* 読書ステータス */}
+                  <div className="mt-4">
+                    <Label className="text-sm text-gray-500 mb-2 block">読書ステータス</Label>
+                    <div className="flex gap-2 flex-wrap">
+                      {statusOptions.map((status) => (
+                        <Badge
+                          key={status.value}
+                          className={`cursor-pointer ${
+                            book.readingStatus === status.value
+                              ? status.color
+                              : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                          }`}
+                          onClick={() => handleStatusChange(status.value as any)}
+                        >
+                          {status.label}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 書籍形式 */}
+                  <div className="mt-4">
+                    <Label className="text-sm text-gray-500 mb-2 block">書籍形式</Label>
+                    <div className="flex gap-2 flex-wrap">
+                      {formatOptions.map((format) => {
+                        const Icon = format.icon;
+                        return (
+                          <Badge
+                            key={format.value}
+                            className={`cursor-pointer flex items-center gap-1 ${
+                              book.format === format.value
+                                ? format.color
+                                : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                            }`}
+                            onClick={() => handleFormatChange(format.value as 'paper' | 'ebook')}
+                          >
+                            <Icon className="h-3 w-3" />
+                            {format.label}
+                          </Badge>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>

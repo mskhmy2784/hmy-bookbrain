@@ -1,0 +1,22 @@
+[debug] [2025-12-30T00:19:52.889Z] ----------------------------------------------------------------------
+[debug] [2025-12-30T00:19:52.891Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\mskhm\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only hosting
+[debug] [2025-12-30T00:19:52.891Z] CLI Version:   15.1.0
+[debug] [2025-12-30T00:19:52.891Z] Platform:      win32
+[debug] [2025-12-30T00:19:52.891Z] Node Version:  v24.12.0
+[debug] [2025-12-30T00:19:52.891Z] Time:          Tue Dec 30 2025 09:19:52 GMT+0900 (GMT+09:00)
+[debug] [2025-12-30T00:19:52.891Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-12-30T00:19:54.185Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-12-30T00:19:54.185Z] > authorizing via signed-in user (admin@hamayamasaaki.com)
+[debug] [2025-12-30T00:19:54.185Z] [iam] checking project hmy-bookbrain for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2025-12-30T00:19:54.186Z] Checked if tokens are valid: true, expires at: 1767056749737
+[debug] [2025-12-30T00:19:54.186Z] Checked if tokens are valid: true, expires at: 1767056749737
+[debug] [2025-12-30T00:19:54.186Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/hmy-bookbrain:testIamPermissions [none]
+[debug] [2025-12-30T00:19:54.187Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/hmy-bookbrain:testIamPermissions x-goog-quota-user=projects/hmy-bookbrain
+[debug] [2025-12-30T00:19:54.187Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/hmy-bookbrain:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-12-30T00:19:54.818Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/hmy-bookbrain:testIamPermissions 200
+[debug] [2025-12-30T00:19:54.818Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/hmy-bookbrain:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-12-30T00:19:54.819Z] Checked if tokens are valid: true, expires at: 1767056749737
+[debug] [2025-12-30T00:19:54.819Z] Checked if tokens are valid: true, expires at: 1767056749737
+[debug] [2025-12-30T00:19:54.819Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/hmy-bookbrain [none]
+[debug] [2025-12-30T00:19:55.139Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/hmy-bookbrain 200

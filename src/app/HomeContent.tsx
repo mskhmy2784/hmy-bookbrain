@@ -8,7 +8,7 @@ import { ImportBooks } from '@/components/ImportBooks';
 import { BookList } from '@/components/BookList';
 import { SearchBox } from '@/components/SearchBox';
 import { SearchResults } from '@/components/SearchResults';
-import { getBooks } from '@/lib/books';
+import { getBooks, setAllBooksAsPaper } from '@/lib/books';
 import { getAllNoteCounts } from '@/lib/notes';
 import {
   searchAll,
@@ -24,9 +24,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { BookOpen, Library, BookMarked, CheckCircle, Upload, X, Plus, PackageX, MoreVertical } from 'lucide-react';
+import { BookOpen, Library, BookMarked, CheckCircle, Upload, X, Plus, PackageX, MoreVertical, BookText, Loader2 } from 'lucide-react';
 
 const SEARCH_STATE_KEY = 'bookbrain_search_state';
 
@@ -50,6 +51,9 @@ export default function HomeContent() {
   
   // メモ数の状態
   const [noteCounts, setNoteCounts] = useState<Map<string, number>>(new Map());
+  
+  // 一括更新中の状態
+  const [bulkUpdating, setBulkUpdating] = useState(false);
 
   // 検索状態
   const [searchQuery, setSearchQuery] = useState('');
@@ -59,28 +63,29 @@ export default function HomeContent() {
   const [searched, setSearched] = useState(false);
 
   // 書籍を取得 & 検索データを事前ロード
-  useEffect(() => {
-    const fetchBooks = async () => {
-      if (!user) return;
-      setLoadingBooks(true);
-      try {
-        const data = await getBooks(user.uid);
-        setBooks(data);
-        preloadSearchData(user.uid);
-        
-        // メモ数を取得
-        if (data.length > 0) {
-          const bookIds = data.map(book => book.id!).filter(Boolean);
-          const counts = await getAllNoteCounts(user.uid, bookIds);
-          setNoteCounts(counts);
-        }
-      } catch (error) {
-        console.error('Error fetching books:', error);
-      } finally {
-        setLoadingBooks(false);
+  const fetchBooksData = async () => {
+    if (!user) return;
+    setLoadingBooks(true);
+    try {
+      const data = await getBooks(user.uid);
+      setBooks(data);
+      preloadSearchData(user.uid);
+      
+      // メモ数を取得
+      if (data.length > 0) {
+        const bookIds = data.map(book => book.id!).filter(Boolean);
+        const counts = await getAllNoteCounts(user.uid, bookIds);
+        setNoteCounts(counts);
       }
-    };
-    fetchBooks();
+    } catch (error) {
+      console.error('Error fetching books:', error);
+    } finally {
+      setLoadingBooks(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBooksData();
 
     return () => {
       clearSearchCache();
@@ -170,6 +175,35 @@ export default function HomeContent() {
     }
   };
 
+  // すべての書籍を紙書籍に設定
+  const handleSetAllAsPaper = async () => {
+    if (!user) return;
+    
+    const booksWithoutFormat = books.filter(book => !book.format);
+    if (booksWithoutFormat.length === 0) {
+      alert('すべての書籍に既に形式が設定されています。');
+      return;
+    }
+
+    if (!confirm(`形式が未設定の ${booksWithoutFormat.length} 冊を「紙の書籍」に設定しますか？`)) {
+      return;
+    }
+
+    setBulkUpdating(true);
+    try {
+      const count = await setAllBooksAsPaper(user.uid);
+      alert(`${count} 冊を紙の書籍に設定しました。`);
+      // データを再取得
+      await fetchBooksData();
+      clearSearchCache();
+    } catch (error) {
+      console.error('Error bulk updating:', error);
+      alert('一括更新中にエラーが発生しました。');
+    } finally {
+      setBulkUpdating(false);
+    }
+  };
+
   const stats = {
     total: books.length,
     reading: books.filter((b) => b.readingStatus === 'reading').length,
@@ -205,6 +239,9 @@ export default function HomeContent() {
 
   const showBookList = filter !== null;
 
+  // 形式未設定の書籍数
+  const booksWithoutFormat = books.filter(book => !book.format).length;
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
       {/* Header */}
@@ -236,6 +273,21 @@ export default function HomeContent() {
                   <DropdownMenuItem onClick={() => setShowImport(true)}>
                     <Upload className="h-4 w-4 mr-2" />
                     Excelからインポート
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={handleSetAllAsPaper}
+                    disabled={bulkUpdating || booksWithoutFormat === 0}
+                  >
+                    {bulkUpdating ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <BookText className="h-4 w-4 mr-2" />
+                    )}
+                    すべて紙書籍に設定
+                    {booksWithoutFormat > 0 && (
+                      <span className="ml-1 text-xs text-gray-500">({booksWithoutFormat}冊)</span>
+                    )}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -376,7 +428,7 @@ export default function HomeContent() {
                     <ImportBooks
                       onImportComplete={() => {
                         if (user) {
-                          getBooks(user.uid).then(setBooks);
+                          fetchBooksData();
                           setShowImport(false);
                         }
                       }}

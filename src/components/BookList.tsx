@@ -2,7 +2,7 @@
 
 import { Book } from '@/types/book';
 import { Badge } from '@/components/ui/badge';
-import { BookOpen, StickyNote } from 'lucide-react';
+import { BookOpen, StickyNote, Smartphone, BookText } from 'lucide-react';
 
 interface BookListProps {
   books: Book[];
@@ -41,7 +41,7 @@ export function BookList({ books, onBookClick, noteCounts }: BookListProps) {
             }`}
           >
             {/* サムネイル */}
-            <div className={`w-10 h-14 bg-gray-100 rounded overflow-hidden shrink-0 flex items-center justify-center ${
+            <div className={`relative w-10 h-14 bg-gray-100 rounded overflow-hidden shrink-0 flex items-center justify-center ${
               isSold ? 'grayscale' : ''
             }`}>
               {book.coverImage ? (
@@ -56,6 +56,18 @@ export function BookList({ books, onBookClick, noteCounts }: BookListProps) {
                 />
               ) : (
                 <BookOpen className="h-5 w-5 text-gray-300" />
+              )}
+              {/* 形式アイコン（右下に小さく表示） */}
+              {book.format && (
+                <div className={`absolute -bottom-0.5 -right-0.5 p-0.5 rounded-tl ${
+                  book.format === 'ebook' ? 'bg-purple-500' : 'bg-amber-500'
+                }`}>
+                  {book.format === 'ebook' ? (
+                    <Smartphone className="h-2.5 w-2.5 text-white" />
+                  ) : (
+                    <BookText className="h-2.5 w-2.5 text-white" />
+                  )}
+                </div>
               )}
             </div>
 

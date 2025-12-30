@@ -13,7 +13,8 @@ export interface Book {
   ndc?: string;
   location?: string;
   coverImage?: string;
-  readingStatus: 'unread' | 'reading' | 'completed' | 'sold';  // soldを追加
+  readingStatus: 'unread' | 'reading' | 'completed' | 'sold';
+  format?: 'paper' | 'ebook';  // 紙の書籍 or 電子書籍
   rating?: number;
   tags?: string[];
   createdAt: Date;
