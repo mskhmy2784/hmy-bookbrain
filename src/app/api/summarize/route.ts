@@ -5,12 +5,14 @@ export async function POST(request: NextRequest) {
     // 環境変数チェック
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
-      console.error('ANTHROPIC_API_KEY is not set');
       return NextResponse.json(
-        { error: 'API key not configured' },
+        { error: 'ANTHROPIC_API_KEY is not configured', debug: 'env_missing' },
         { status: 500 }
       );
     }
+
+    // APIキーの形式チェック（最初と最後の数文字だけ表示）
+    const keyPreview = `${apiKey.substring(0, 10)}...${apiKey.substring(apiKey.length - 4)}`;
 
     const { bookTitle, bookAuthor, notes } = await request.json();
 
@@ -67,9 +69,12 @@ ${notesText}
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Anthropic API error:', response.status, errorText);
       return NextResponse.json(
-        { error: `API error: ${response.status}` },
+        { 
+          error: `Anthropic API error: ${response.status}`,
+          debug: errorText,
+          keyPreview: keyPreview
+        },
         { status: 500 }
       );
     }
@@ -78,14 +83,19 @@ ${notesText}
     const content = data.content[0];
     
     if (content.type !== 'text') {
-      throw new Error('Unexpected response type');
+      return NextResponse.json(
+        { error: 'Unexpected response type', debug: JSON.stringify(data) },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ summary: content.text });
   } catch (error) {
-    console.error('AI Summary error:', error);
     return NextResponse.json(
-      { error: 'AI要約の生成中にエラーが発生しました' },
+      { 
+        error: 'AI要約の生成中にエラーが発生しました',
+        debug: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }

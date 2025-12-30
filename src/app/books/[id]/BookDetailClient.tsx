@@ -239,11 +239,17 @@ export default function BookDetailClient() {
         }),
       });
       
+      const data = await response.json();
+      
       if (!response.ok) {
-        throw new Error('Failed to generate summary');
+        console.error('API Error:', data);
+        const debugInfo = data.debug ? `\n\nデバッグ情報: ${data.debug}` : '';
+        const keyInfo = data.keyPreview ? `\nAPIキー: ${data.keyPreview}` : '';
+        alert(`AI要約の生成中にエラーが発生しました\n\n${data.error}${debugInfo}${keyInfo}`);
+        setShowSummary(false);
+        return;
       }
       
-      const data = await response.json();
       setAiSummary(data.summary);
     } catch (error) {
       console.error('Error generating summary:', error);
