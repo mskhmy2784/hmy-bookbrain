@@ -11,9 +11,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // APIキーの形式チェック（最初と最後の数文字だけ表示）
-    const keyPreview = `${apiKey.substring(0, 10)}...${apiKey.substring(apiKey.length - 4)}`;
-
     const { bookTitle, bookAuthor, notes } = await request.json();
 
     if (!notes || notes.length === 0) {
@@ -34,18 +31,30 @@ export async function POST(request: NextRequest) {
 
     const prompt = `以下は「${bookTitle}」${bookAuthor ? `（著者: ${bookAuthor}）` : ''}という書籍に関するメモです。
 
-これらのメモを分析し、以下の形式で要約してください：
+これらのメモを分析し、以下の形式で要約してください。各セクションは見出し（##）を使い、箇条書きは「-」を使ってください。
 
-1. **この本の要点**（3〜5個の箇条書き）
-2. **キーワード・重要概念**（重要な用語や概念を列挙）
-3. **読者のインサイト**（メモから読み取れる、読者が特に注目した点や気づき）
-4. **総括**（2〜3文で全体をまとめる）
+## この本の要点
+- 要点1
+- 要点2
+- 要点3
+（3〜5個）
+
+## キーワード・重要概念
+- キーワード1
+- キーワード2
+（重要な用語や概念を列挙）
+
+## 読者のインサイト
+メモから読み取れる、読者が特に注目した点や気づきを2〜3文で記述。
+
+## 総括
+全体を2〜3文でまとめる。
 
 ---
 ${notesText}
 ---
 
-日本語で、簡潔かつ分かりやすく要約してください。`;
+日本語で、上記のフォーマットに従って簡潔に要約してください。番号付きリスト（1. 2. 3.）は使わず、見出しと箇条書きのみを使ってください。`;
 
     // Claude API を直接呼び出し
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -56,7 +65,7 @@ ${notesText}
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-3-haiku-20240307',
         max_tokens: 1500,
         messages: [
           {
@@ -72,8 +81,7 @@ ${notesText}
       return NextResponse.json(
         { 
           error: `Anthropic API error: ${response.status}`,
-          debug: errorText,
-          keyPreview: keyPreview
+          debug: errorText
         },
         { status: 500 }
       );

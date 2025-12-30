@@ -34,6 +34,8 @@ import {
   BookText,
   Smartphone,
   Sparkles,
+  RefreshCw,
+  Image,
 } from 'lucide-react';
 
 const statusOptions = [
@@ -65,7 +67,6 @@ export default function BookDetailClient() {
   const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
   
   // AI要約
-  const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [generatingSummary, setGeneratingSummary] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
 
@@ -81,6 +82,10 @@ export default function BookDetailClient() {
       setNotes(notesData);
       if (bookData) {
         setEditedBook(bookData);
+        // 保存済みのAI要約があれば表示
+        if (bookData.aiSummary) {
+          setShowSummary(true);
+        }
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -217,9 +222,9 @@ export default function BookDetailClient() {
     }
   };
 
-  // AI要約を生成
+  // AI要約を生成して保存
   const handleGenerateSummary = async () => {
-    if (!book || notes.length === 0) return;
+    if (!book || !user || notes.length === 0) return;
     
     setGeneratingSummary(true);
     setShowSummary(true);
@@ -244,19 +249,44 @@ export default function BookDetailClient() {
       if (!response.ok) {
         console.error('API Error:', data);
         const debugInfo = data.debug ? `\n\nデバッグ情報: ${data.debug}` : '';
-        const keyInfo = data.keyPreview ? `\nAPIキー: ${data.keyPreview}` : '';
-        alert(`AI要約の生成中にエラーが発生しました\n\n${data.error}${debugInfo}${keyInfo}`);
-        setShowSummary(false);
+        alert(`AI要約の生成中にエラーが発生しました\n\n${data.error}${debugInfo}`);
+        if (!book.aiSummary) {
+          setShowSummary(false);
+        }
         return;
       }
       
-      setAiSummary(data.summary);
+      // 要約をFirestoreに保存
+      await updateBook(user.uid, bookId, { 
+        aiSummary: data.summary,
+        aiSummaryUpdatedAt: new Date(),
+      });
+      setBook({ ...book, aiSummary: data.summary, aiSummaryUpdatedAt: new Date() });
     } catch (error) {
       console.error('Error generating summary:', error);
       alert('AI要約の生成中にエラーが発生しました');
-      setShowSummary(false);
+      if (!book.aiSummary) {
+        setShowSummary(false);
+      }
     } finally {
       setGeneratingSummary(false);
+    }
+  };
+
+  // AI要約を削除
+  const handleDeleteSummary = async () => {
+    if (!book || !user) return;
+    if (!confirm('AI要約を削除しますか？')) return;
+    
+    try {
+      await updateBook(user.uid, bookId, { 
+        aiSummary: undefined,
+        aiSummaryUpdatedAt: undefined,
+      });
+      setBook({ ...book, aiSummary: undefined, aiSummaryUpdatedAt: undefined });
+      setShowSummary(false);
+    } catch (error) {
+      console.error('Error deleting summary:', error);
     }
   };
 
@@ -367,15 +397,9 @@ export default function BookDetailClient() {
                   className={linkCopied ? 'bg-green-50 border-green-300' : ''}
                 >
                   {linkCopied ? (
-                    <>
-                      <Check className="mr-2 h-4 w-4 text-green-600" />
-                      コピー完了
-                    </>
+                    <><Check className="mr-2 h-4 w-4 text-green-600" />コピー完了</>
                   ) : (
-                    <>
-                      <Link2 className="mr-2 h-4 w-4" />
-                      リンクをコピー
-                    </>
+                    <><Link2 className="mr-2 h-4 w-4" />リンクをコピー</>
                   )}
                 </Button>
                 <Button variant="outline" onClick={handleStartEdit}>
@@ -503,24 +527,57 @@ export default function BookDetailClient() {
             </CardContent>
           </Card>
 
+          {/* AI要約カード */}
           {showSummary && (
             <Card className="border-purple-200 bg-purple-50/50">
               <CardHeader>
                 <div className="flex justify-between items-center">
-                  <CardTitle className="text-xl flex items-center gap-2"><Sparkles className="h-5 w-5 text-purple-600" />AI要約</CardTitle>
-                  <Button variant="ghost" size="sm" onClick={() => setShowSummary(false)}><X className="h-4 w-4" /></Button>
+                  <CardTitle className="text-xl flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-purple-600" />
+                    AI要約
+                    {book.aiSummaryUpdatedAt && (
+                      <span className="text-xs font-normal text-gray-500">
+                        （{new Date(book.aiSummaryUpdatedAt).toLocaleDateString('ja-JP')} 更新）
+                      </span>
+                    )}
+                  </CardTitle>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleGenerateSummary}
+                      disabled={generatingSummary || notes.length === 0}
+                      title="再生成"
+                    >
+                      <RefreshCw className={`h-4 w-4 ${generatingSummary ? 'animate-spin' : ''}`} />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={handleDeleteSummary}>
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setShowSummary(false)}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
                 {generatingSummary ? (
-                  <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-purple-600 mr-2" /><span className="text-gray-600">AI要約を生成中...</span></div>
-                ) : aiSummary ? (
-                  <div className="prose prose-sm max-w-none"><MarkdownViewer content={aiSummary} /></div>
-                ) : null}
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-purple-600 mr-2" />
+                    <span className="text-gray-600">AI要約を生成中...</span>
+                  </div>
+                ) : book.aiSummary ? (
+                  <div className="prose prose-sm max-w-none">
+                    <MarkdownViewer content={book.aiSummary} />
+                  </div>
+                ) : (
+                  <p className="text-center text-gray-500 py-4">要約がありません</p>
+                )}
               </CardContent>
             </Card>
           )}
 
+          {/* メモカード */}
           <Card>
             <CardHeader>
               <div className="flex justify-between items-center">
@@ -528,14 +585,34 @@ export default function BookDetailClient() {
                 <div className="flex gap-2 flex-wrap">
                   {notes.length > 0 && (
                     <>
-                      <Button variant="outline" size="sm" onClick={handleGenerateSummary} disabled={generatingSummary} className="text-purple-600 border-purple-200 hover:bg-purple-50">
-                        {generatingSummary ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />}AI要約
+                      {/* AI要約ボタン */}
+                      {!showSummary && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleGenerateSummary}
+                          disabled={generatingSummary}
+                          className="text-purple-600 border-purple-200 hover:bg-purple-50"
+                        >
+                          {generatingSummary ? (
+                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                          ) : (
+                            <Sparkles className="h-4 w-4 mr-1" />
+                          )}
+                          {book.aiSummary ? 'AI要約を表示' : 'AI要約'}
+                        </Button>
+                      )}
+                      <Button variant="outline" size="sm" onClick={expandAllNotes} disabled={expandedNotes.size === notes.length}>
+                        <ChevronDown className="h-4 w-4 mr-1" />すべて開く
                       </Button>
-                      <Button variant="outline" size="sm" onClick={expandAllNotes} disabled={expandedNotes.size === notes.length}><ChevronDown className="h-4 w-4 mr-1" />すべて開く</Button>
-                      <Button variant="outline" size="sm" onClick={collapseAllNotes} disabled={expandedNotes.size === 0}><ChevronUp className="h-4 w-4 mr-1" />すべて閉じる</Button>
+                      <Button variant="outline" size="sm" onClick={collapseAllNotes} disabled={expandedNotes.size === 0}>
+                        <ChevronUp className="h-4 w-4 mr-1" />すべて閉じる
+                      </Button>
                     </>
                   )}
-                  <Button onClick={() => router.push(`/books/${bookId}/notes/new`)}><Plus className="mr-2 h-4 w-4" />メモを追加</Button>
+                  <Button onClick={() => router.push(`/books/${bookId}/notes/new`)}>
+                    <Plus className="mr-2 h-4 w-4" />メモを追加
+                  </Button>
                 </div>
               </div>
             </CardHeader>
@@ -546,13 +623,17 @@ export default function BookDetailClient() {
                 <div className="space-y-3">
                   {notes.map((note, noteIndex) => {
                     const isExpanded = expandedNotes.has(note.id!);
+                    const hasImages = note.images && note.images.length > 0;
                     return (
                       <div key={note.id} className="border rounded-lg overflow-hidden">
                         <div className="flex justify-between items-center p-4 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => toggleNote(note.id!)}>
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             {isExpanded ? <ChevronUp className="h-5 w-5 text-gray-500 shrink-0" /> : <ChevronDown className="h-5 w-5 text-gray-500 shrink-0" />}
                             <div className="min-w-0">
-                              <h4 className="font-semibold truncate">{note.title || '無題のメモ'}</h4>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-semibold truncate">{note.title || '無題のメモ'}</h4>
+                                {hasImages && <Image className="h-4 w-4 text-gray-400" />}
+                              </div>
                               <div className="text-sm text-gray-500">
                                 {note.pageReference && <span className="mr-4">📄 {note.pageReference}</span>}
                                 <span>{note.createdAt.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
@@ -567,7 +648,30 @@ export default function BookDetailClient() {
                             <Button variant="ghost" size="sm" onClick={() => handleDeleteNote(note.id!)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
                           </div>
                         </div>
-                        {isExpanded && <div className="p-4 border-t bg-white"><MarkdownViewer content={note.content} onContentChange={(newContent) => handleNoteContentChange(note.id!, newContent)} /></div>}
+                        {isExpanded && (
+                          <div className="p-4 border-t bg-white">
+                            <MarkdownViewer content={note.content} onContentChange={(newContent) => handleNoteContentChange(note.id!, newContent)} />
+                            {/* 添付画像の表示 */}
+                            {hasImages && (
+                              <div className="mt-4 pt-4 border-t">
+                                <p className="text-sm text-gray-500 mb-2">添付画像</p>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                  {note.images!.map((img) => (
+                                    <a
+                                      key={img.id}
+                                      href={img.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="aspect-square bg-gray-100 rounded-lg overflow-hidden hover:opacity-80 transition-opacity"
+                                    >
+                                      <img src={img.url} alt="" className="w-full h-full object-cover" />
+                                    </a>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}

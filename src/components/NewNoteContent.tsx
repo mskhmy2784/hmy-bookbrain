@@ -1,193 +1,315 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { addNote } from '@/lib/notes';
-import { getBook } from '@/lib/books';
+import { uploadNoteImage } from '@/lib/storage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { MarkdownEditor } from '@/components/MarkdownEditor';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MarkdownViewer } from '@/components/MarkdownViewer';
-import { ArrowLeft, Save, Eye, Edit, BookOpen } from 'lucide-react';
-import { Book } from '@/types/book';
+import { ArrowLeft, Save, Loader2, ImagePlus, Camera, Eye, Edit } from 'lucide-react';
 
 export default function NewNoteContent() {
   const params = useParams();
+  const bookId = params.id as string;
   const router = useRouter();
   const { user } = useAuth();
-  const bookId = params.id as string;
-
-  const [book, setBook] = useState<Book | null>(null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [pageRef, setPageRef] = useState('');
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [mode, setMode] = useState<'edit' | 'preview'>('edit');
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  
+  // 一時的なnoteIdを生成（新規作成時の画像保存用）
+  const tempNoteId = useRef(`temp-${Date.now()}`);
 
-  useEffect(() => {
-    const fetchBook = async () => {
-      if (!user || !bookId) return;
-      const bookData = await getBook(user.uid, bookId);
-      setBook(bookData);
-    };
-    fetchBook();
-  }, [user, bookId]);
+  // テキストエリアのカーソル位置に画像Markdownを挿入
+  const insertImageAtCursor = useCallback((imageUrl: string, altText: string = '画像') => {
+    const textarea = textareaRef.current;
+    const imageMarkdown = `![${altText}](${imageUrl})`;
+    
+    if (!textarea) {
+      setContent(prev => prev + `\n${imageMarkdown}\n`);
+      return;
+    }
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = content;
+    
+    const before = text.substring(0, start);
+    const after = text.substring(end);
+    
+    const prefix = before.length > 0 && !before.endsWith('\n') ? '\n' : '';
+    const suffix = after.length > 0 && !after.startsWith('\n') ? '\n' : '';
+    
+    const newContent = before + prefix + imageMarkdown + suffix + after;
+    setContent(newContent);
+    
+    setTimeout(() => {
+      const newPosition = start + prefix.length + imageMarkdown.length + suffix.length;
+      textarea.focus();
+      textarea.setSelectionRange(newPosition, newPosition);
+    }, 0);
+  }, [content]);
+
+  // ファイル選択時の処理
+  const handleFileSelect = useCallback(async (files: FileList | null) => {
+    if (!files || files.length === 0 || !user) return;
+    
+    setUploading(true);
+    
+    try {
+      for (const file of Array.from(files)) {
+        if (!file.type.startsWith('image/')) {
+          alert('画像ファイルのみアップロードできます');
+          continue;
+        }
+        
+        if (file.size > 10 * 1024 * 1024) {
+          alert('10MB以下の画像を選択してください');
+          continue;
+        }
+        
+        const result = await uploadNoteImage(user.uid, bookId, tempNoteId.current, file);
+        insertImageAtCursor(result.url, file.name.replace(/\.[^/.]+$/, ''));
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert('画像のアップロードに失敗しました');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  }, [user, bookId, insertImageAtCursor]);
+
+  // クリップボードからの貼り付け処理
+  const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items || !user) return;
+    
+    const imageItems = Array.from(items).filter(item => item.type.startsWith('image/'));
+    
+    if (imageItems.length === 0) return;
+    
+    e.preventDefault();
+    setUploading(true);
+    
+    try {
+      for (const item of imageItems) {
+        const file = item.getAsFile();
+        if (!file) continue;
+        
+        const result = await uploadNoteImage(user.uid, bookId, tempNoteId.current, file);
+        insertImageAtCursor(result.url, '貼り付け画像');
+      }
+    } catch (error) {
+      console.error('Error uploading pasted image:', error);
+      alert('画像のアップロードに失敗しました');
+    } finally {
+      setUploading(false);
+    }
+  }, [user, bookId, insertImageAtCursor]);
 
   const handleSave = async () => {
-    if (!user || !bookId || !content.trim()) return;
+    if (!user) return;
+    if (!content.trim()) {
+      alert('メモの内容を入力してください');
+      return;
+    }
+
     setSaving(true);
     try {
       await addNote(user.uid, bookId, {
+        bookId,
         title: title || undefined,
         content,
         pageReference: pageRef || undefined,
       });
       router.push(`/books/${bookId}`);
     } catch (error) {
-      console.error('Error adding note:', error);
+      console.error('Error saving note:', error);
+      alert('メモの保存に失敗しました');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleCancel = () => {
-    if (content.trim() && !confirm('入力内容が破棄されます。よろしいですか？')) {
-      return;
-    }
-    router.push(`/books/${bookId}`);
-  };
-
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Header */}
-      <header className="border-b bg-white sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={handleCancel}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              戻る
-            </Button>
-            {book && (
-              <div className="flex items-center gap-2 text-gray-600">
-                <BookOpen className="h-4 w-4" />
-                <span className="text-sm truncate max-w-[200px] md:max-w-[400px]">
-                  {book.title}
-                </span>
+    <div className="min-h-screen bg-gray-50">
+      <main className="container mx-auto px-4 py-6">
+        {/* 横幅を max-w-5xl に拡大 */}
+        <div className="max-w-5xl mx-auto">
+          <Button
+            variant="ghost"
+            onClick={() => router.push(`/books/${bookId}`)}
+            className="mb-4"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            書籍に戻る
+          </Button>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>新しいメモを追加</CardTitle>
+                {/* 入力/プレビュー切り替えボタン */}
+                <div className="flex border rounded-md overflow-hidden">
+                  <Button
+                    variant={mode === 'edit' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setMode('edit')}
+                    className="rounded-none"
+                  >
+                    <Edit className="mr-2 h-4 w-4" />
+                    入力
+                  </Button>
+                  <Button
+                    variant={mode === 'preview' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setMode('preview')}
+                    className="rounded-none"
+                  >
+                    <Eye className="mr-2 h-4 w-4" />
+                    プレビュー
+                  </Button>
+                </div>
               </div>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {/* モード切り替え */}
-            <div className="flex border rounded-lg overflow-hidden">
-              <Button
-                variant={mode === 'edit' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setMode('edit')}
-                className="rounded-none"
-              >
-                <Edit className="mr-2 h-4 w-4" />
-                入力
-              </Button>
-              <Button
-                variant={mode === 'preview' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setMode('preview')}
-                className="rounded-none"
-              >
-                <Eye className="mr-2 h-4 w-4" />
-                プレビュー
-              </Button>
-            </div>
-            <Button onClick={handleSave} disabled={!content.trim() || saving}>
-              <Save className="mr-2 h-4 w-4" />
-              {saving ? '保存中...' : '保存'}
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="flex-1 container mx-auto px-4 py-6">
-        <div className="max-w-5xl mx-auto h-full">
-          {/* メタ情報 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div>
-              <Label htmlFor="title">タイトル（任意）</Label>
-              <Input
-                id="title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="例: Chapter 3 のまとめ"
-                className="mt-1 bg-white"
-              />
-            </div>
-            <div>
-              <Label htmlFor="pageRef">ページ参照（任意）</Label>
-              <Input
-                id="pageRef"
-                value={pageRef}
-                onChange={(e) => setPageRef(e.target.value)}
-                placeholder="例: p.45-52"
-                className="mt-1 bg-white"
-              />
-            </div>
-          </div>
-
-          {/* エディタ / プレビュー */}
-          <div className="bg-white rounded-lg border shadow-sm">
-            {mode === 'edit' ? (
-              <div className="p-4">
-                <Label className="mb-2 block">
-                  内容（マークダウン形式で入力できます）
-                  <span className="text-gray-400 font-normal ml-2">
-                    / でコマンドメニューを表示
-                  </span>
-                </Label>
-                <MarkdownEditor
-                  value={content}
-                  onChange={setContent}
-                  placeholder="マークダウン形式でメモを入力...
-
-「/」を入力するとコマンドメニューが表示されます。
-
-例:
-/h2 → ## 見出し
-/bullet → - 箇条書き
-/code → コードブロック"
-                  className="min-h-[calc(100vh-320px)]"
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="title">タイトル（任意）</Label>
+                <Input
+                  id="title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="メモのタイトル"
+                  className="mt-1"
                 />
               </div>
-            ) : (
-              <div className="p-6 min-h-[calc(100vh-320px)]">
-                {content.trim() ? (
-                  <MarkdownViewer content={content} />
+
+              <div>
+                <Label htmlFor="pageRef">ページ参照（任意）</Label>
+                <Input
+                  id="pageRef"
+                  value={pageRef}
+                  onChange={(e) => setPageRef(e.target.value)}
+                  placeholder="例: p.42, 第3章"
+                  className="mt-1"
+                />
+              </div>
+
+              <div>
+                {mode === 'edit' ? (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="content">内容</Label>
+                      <div className="flex gap-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          className="hidden"
+                          ref={fileInputRef}
+                          onChange={(e) => handleFileSelect(e.target.files)}
+                          disabled={uploading}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={uploading}
+                        >
+                          {uploading ? (
+                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                          ) : (
+                            <ImagePlus className="h-4 w-4 mr-1" />
+                          )}
+                          画像挿入
+                        </Button>
+                        
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          className="hidden"
+                          id="camera-input-new"
+                          onChange={(e) => handleFileSelect(e.target.files)}
+                          disabled={uploading}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => document.getElementById('camera-input-new')?.click()}
+                          disabled={uploading}
+                          className="sm:hidden"
+                        >
+                          <Camera className="h-4 w-4 mr-1" />
+                          撮影
+                        </Button>
+                      </div>
+                    </div>
+                    <Textarea
+                      ref={textareaRef}
+                      id="content"
+                      value={content}
+                      onChange={(e) => setContent(e.target.value)}
+                      onPaste={handlePaste}
+                      placeholder="メモの内容を入力（Markdownに対応）&#10;&#10;画像はCtrl+Vで貼り付け、または「画像挿入」ボタンで追加できます"
+                      className="mt-1 min-h-[500px] font-mono text-base leading-relaxed"
+                    />
+                    <p className="text-sm text-gray-500 mt-2">
+                      Markdown記法が使えます。チェックボックスは - [ ] で作成。画像は Ctrl+V で貼り付けるとカーソル位置に挿入されます。
+                    </p>
+                  </>
                 ) : (
-                  <p className="text-gray-400 text-center py-12">
-                    プレビューする内容がありません
-                  </p>
+                  <div className="border rounded-md p-4 min-h-[500px] bg-white">
+                    <Label className="mb-2 block text-gray-500">プレビュー</Label>
+                    {content.trim() ? (
+                      <MarkdownViewer content={content} />
+                    ) : (
+                      <p className="text-gray-400 italic">内容がありません</p>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
 
-          {/* マークダウンヘルプ（入力モード時のみ） */}
-          {mode === 'edit' && (
-            <div className="mt-4 p-4 bg-gray-100 rounded-lg text-sm text-gray-600">
-              <p className="font-medium mb-2">💡 ヒント: 「/」を入力するとコマンドメニューが表示されます</p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                <span><code>/h1</code> 見出し1</span>
-                <span><code>/h2</code> 見出し2</span>
-                <span><code>/bullet</code> 箇条書き</span>
-                <span><code>/number</code> 番号リスト</span>
-                <span><code>/todo</code> TODOリスト</span>
-                <span><code>/quote</code> 引用</span>
-                <span><code>/code</code> コードブロック</span>
-                <span><code>/table</code> テーブル</span>
+              <div className="flex gap-2 pt-4">
+                <Button onClick={handleSave} disabled={saving || uploading}>
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      保存中...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      保存
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => router.push(`/books/${bookId}`)}
+                  disabled={saving}
+                >
+                  キャンセル
+                </Button>
               </div>
-            </div>
-          )}
+            </CardContent>
+          </Card>
         </div>
       </main>
     </div>
