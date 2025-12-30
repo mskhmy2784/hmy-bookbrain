@@ -1,0 +1,64 @@
+[debug] [2025-12-30T00:43:00.577Z] ----------------------------------------------------------------------
+[debug] [2025-12-30T00:43:00.579Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\mskhm\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only hosting
+[debug] [2025-12-30T00:43:00.579Z] CLI Version:   15.1.0
+[debug] [2025-12-30T00:43:00.579Z] Platform:      win32
+[debug] [2025-12-30T00:43:00.579Z] Node Version:  v24.12.0
+[debug] [2025-12-30T00:43:00.579Z] Time:          Tue Dec 30 2025 09:43:00 GMT+0900 (GMT+09:00)
+[debug] [2025-12-30T00:43:00.580Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-12-30T00:43:01.899Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-12-30T00:43:01.899Z] > authorizing via signed-in user (admin@hamayamasaaki.com)
+[debug] [2025-12-30T00:43:01.899Z] [iam] checking project hmy-bookbrain for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2025-12-30T00:43:01.900Z] Checked if tokens are valid: true, expires at: 1767056749737
+[debug] [2025-12-30T00:43:01.900Z] Checked if tokens are valid: true, expires at: 1767056749737
+[debug] [2025-12-30T00:43:01.901Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/hmy-bookbrain:testIamPermissions [none]
+[debug] [2025-12-30T00:43:01.901Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/hmy-bookbrain:testIamPermissions x-goog-quota-user=projects/hmy-bookbrain
+[debug] [2025-12-30T00:43:01.901Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/hmy-bookbrain:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-12-30T00:43:02.548Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/hmy-bookbrain:testIamPermissions 200
+[debug] [2025-12-30T00:43:02.548Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/hmy-bookbrain:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-12-30T00:43:02.548Z] Checked if tokens are valid: true, expires at: 1767056749737
+[debug] [2025-12-30T00:43:02.548Z] Checked if tokens are valid: true, expires at: 1767056749737
+[debug] [2025-12-30T00:43:02.549Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/hmy-bookbrain [none]
+[debug] [2025-12-30T00:43:02.891Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/hmy-bookbrain 200
+[debug] [2025-12-30T00:43:02.891Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/hmy-bookbrain {"projectId":"hmy-bookbrain","projectNumber":"697521946410","displayName":"hmy-bookbrain","name":"projects/hmy-bookbrain","resources":{"hostingSite":"hmy-bookbrain"},"state":"ACTIVE","etag":"1_77926231-02e4-4805-bbe2-397b7e06be5e"}
+[debug] [2025-12-30T00:43:05.312Z] Checked if tokens are valid: true, expires at: 1767056749737
+[debug] [2025-12-30T00:43:05.312Z] Checked if tokens are valid: true, expires at: 1767056749737
+[debug] [2025-12-30T00:43:05.313Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/hmy-bookbrain/sites pageToken=&pageSize=10
+[debug] [2025-12-30T00:43:06.332Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/hmy-bookbrain/sites 200
+[debug] [2025-12-30T00:43:06.332Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/hmy-bookbrain/sites {"sites":[{"name":"projects/hmy-bookbrain/sites/hmy-bookbrain","defaultUrl":"https://hmy-bookbrain.web.app","appId":"1:697521946410:web:2a93ae809e7f829f3a6853","type":"DEFAULT_SITE"}]}
+[debug] [2025-12-30T00:43:06.332Z] Checked if tokens are valid: true, expires at: 1767056749737
+[debug] [2025-12-30T00:43:06.332Z] Checked if tokens are valid: true, expires at: 1767056749737
+[debug] [2025-12-30T00:43:06.332Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/-/webApps/1:697521946410:web:2a93ae809e7f829f3a6853/config [none]
+[debug] [2025-12-30T00:43:07.251Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/-/webApps/1:697521946410:web:2a93ae809e7f829f3a6853/config 200
+[debug] [2025-12-30T00:43:07.251Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/-/webApps/1:697521946410:web:2a93ae809e7f829f3a6853/config {"projectId":"hmy-bookbrain","appId":"1:697521946410:web:2a93ae809e7f829f3a6853","storageBucket":"hmy-bookbrain.firebasestorage.app","apiKey":"AIzaSyBFXtnyGlmSlg2BhhDewE1RDHMW0V6z6Eo","authDomain":"hmy-bookbrain.firebaseapp.com","messagingSenderId":"697521946410","measurementId":"G-XGRV0K5DQL","projectNumber":"697521946410","version":"2"}
+[info] 
+   Thank you for trying our early preview of Next.js support on Firebase Hosting.
+   During the preview, support is best-effort and breaking changes can be expected. Proceed with caution.
+   The integration is known to work with Next.js version 12 - 15.0. You may encounter errors.
+
+   Documentation: https://firebase.google.com/docs/hosting/frameworks/nextjs
+   File a bug: https://github.com/firebase/firebase-tools/issues/new?template=bug_report.md
+   Submit a feature request: https://github.com/firebase/firebase-tools/issues/new?template=feature_request.md
+
+   We'd love to learn from you. Express your interest in helping us shape the future of Firebase Hosting: https://goo.gle/41enW5X
+
+[debug] [2025-12-30T00:43:13.455Z] Checked if tokens are valid: true, expires at: 1767056749737
+[debug] [2025-12-30T00:43:13.455Z] Checked if tokens are valid: true, expires at: 1767056749737
+[debug] [2025-12-30T00:43:13.455Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/hmy-bookbrain/sites/hmy-bookbrain [none]
+[debug] [2025-12-30T00:43:14.366Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/hmy-bookbrain/sites/hmy-bookbrain 200
+[debug] [2025-12-30T00:43:14.366Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/hmy-bookbrain/sites/hmy-bookbrain {"name":"projects/hmy-bookbrain/sites/hmy-bookbrain","defaultUrl":"https://hmy-bookbrain.web.app","appId":"1:697521946410:web:2a93ae809e7f829f3a6853","type":"DEFAULT_SITE"}
+[info] 
+
+[info] > Build error occurred
+
+[info] Error: EPERM: operation not permitted, unlink 'C:\Users\mskhm\OneDrive\AIDev\bookbrain\.next\static\-Kr43FZdGBmIqCPjxrpMw'
+    at ignore-listed frames {
+  errno: -4048,
+  code: 'EPERM',
+  syscall: 'unlink',
+  path: 'C:\\Users\\mskhm\\OneDrive\\AIDev\\bookbrain\\.next\\static\\-Kr43FZdGBmIqCPjxrpMw'
+}
+
+[debug] [2025-12-30T00:43:15.783Z] Error: ENOENT: no such file or directory, open 'C:\Users\mskhm\OneDrive\AIDev\bookbrain\.next\server\middleware-manifest.json'
+[error] 
+[error] Error: An unexpected error has occurred.
