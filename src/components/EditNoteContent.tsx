@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MarkdownViewer } from '@/components/MarkdownViewer';
-import { ArrowLeft, Save, Loader2, ImagePlus, Camera, Eye, Edit } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, ImagePlus, Camera, Eye, Edit, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function EditNoteContent() {
   const params = useParams();
@@ -28,6 +28,7 @@ export default function EditNoteContent() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [mode, setMode] = useState<'edit' | 'preview'>('edit');
+  const [showHelp, setShowHelp] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -53,7 +54,6 @@ export default function EditNoteContent() {
     loadNote();
   }, [user, bookId, noteId]);
 
-  // テキストエリアのカーソル位置に画像Markdownを挿入
   const insertImageAtCursor = useCallback((imageUrl: string, altText: string = '画像') => {
     const textarea = textareaRef.current;
     const imageMarkdown = `![${altText}](${imageUrl})`;
@@ -83,7 +83,6 @@ export default function EditNoteContent() {
     }, 0);
   }, [content]);
 
-  // ファイル選択時の処理
   const handleFileSelect = useCallback(async (files: FileList | null) => {
     if (!files || files.length === 0 || !user) return;
     
@@ -115,7 +114,6 @@ export default function EditNoteContent() {
     }
   }, [user, bookId, noteId, insertImageAtCursor]);
 
-  // クリップボードからの貼り付け処理
   const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
     if (!items || !user) return;
@@ -185,7 +183,6 @@ export default function EditNoteContent() {
   return (
     <div className="min-h-screen bg-gray-50">
       <main className="container mx-auto px-4 py-6">
-        {/* 横幅を max-w-5xl に拡大 */}
         <div className="max-w-5xl mx-auto">
           <Button
             variant="ghost"
@@ -200,7 +197,6 @@ export default function EditNoteContent() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>メモを編集</CardTitle>
-                {/* 入力/プレビュー切り替えボタン */}
                 <div className="flex border rounded-md overflow-hidden">
                   <Button
                     variant={mode === 'edit' ? 'default' : 'ghost'}
@@ -304,12 +300,81 @@ export default function EditNoteContent() {
                       value={content}
                       onChange={(e) => setContent(e.target.value)}
                       onPaste={handlePaste}
-                      placeholder="メモの内容を入力（Markdownに対応）&#10;&#10;画像はCtrl+Vで貼り付け、または「画像挿入」ボタンで追加できます"
+                      placeholder="メモの内容を入力（Markdownに対応）"
                       className="mt-1 min-h-[500px] font-mono text-base leading-relaxed"
                     />
-                    <p className="text-sm text-gray-500 mt-2">
-                      Markdown記法が使えます。チェックボックスは - [ ] で作成。画像は Ctrl+V で貼り付けるとカーソル位置に挿入されます。
-                    </p>
+                    
+                    {/* Markdownガイド */}
+                    <div className="mt-3">
+                      <button
+                        type="button"
+                        onClick={() => setShowHelp(!showHelp)}
+                        className="flex items-center text-sm text-blue-600 hover:text-blue-800"
+                      >
+                        <HelpCircle className="h-4 w-4 mr-1" />
+                        Markdown記法ガイド
+                        {showHelp ? (
+                          <ChevronUp className="h-4 w-4 ml-1" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4 ml-1" />
+                        )}
+                      </button>
+                      
+                      {showHelp && (
+                        <div className="mt-2 p-4 bg-gray-100 rounded-md text-sm">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <h4 className="font-semibold mb-2">テキスト装飾</h4>
+                              <table className="w-full text-left">
+                                <tbody>
+                                  <tr><td className="pr-4 py-1 font-mono">**太字**</td><td className="py-1">→ <strong>太字</strong></td></tr>
+                                  <tr><td className="pr-4 py-1 font-mono">*斜体*</td><td className="py-1">→ <em>斜体</em></td></tr>
+                                  <tr><td className="pr-4 py-1 font-mono">~~取消線~~</td><td className="py-1">→ <del>取消線</del></td></tr>
+                                  <tr><td className="pr-4 py-1 font-mono">`コード`</td><td className="py-1">→ <code className="bg-gray-200 px-1 rounded">コード</code></td></tr>
+                                </tbody>
+                              </table>
+                            </div>
+                            
+                            <div>
+                              <h4 className="font-semibold mb-2">見出し</h4>
+                              <table className="w-full text-left">
+                                <tbody>
+                                  <tr><td className="pr-4 py-1 font-mono"># 見出し1</td><td className="py-1">→ 大見出し</td></tr>
+                                  <tr><td className="pr-4 py-1 font-mono">## 見出し2</td><td className="py-1">→ 中見出し</td></tr>
+                                  <tr><td className="pr-4 py-1 font-mono">### 見出し3</td><td className="py-1">→ 小見出し</td></tr>
+                                </tbody>
+                              </table>
+                            </div>
+                            
+                            <div>
+                              <h4 className="font-semibold mb-2">リスト</h4>
+                              <table className="w-full text-left">
+                                <tbody>
+                                  <tr><td className="pr-4 py-1 font-mono">- 項目</td><td className="py-1">→ 箇条書き</td></tr>
+                                  <tr><td className="pr-4 py-1 font-mono">1. 項目</td><td className="py-1">→ 番号付き</td></tr>
+                                  <tr><td className="pr-4 py-1 font-mono">- [ ] タスク</td><td className="py-1">→ チェックボックス</td></tr>
+                                  <tr><td className="pr-4 py-1 font-mono">- [x] 完了</td><td className="py-1">→ チェック済み</td></tr>
+                                </tbody>
+                              </table>
+                            </div>
+                            
+                            <div>
+                              <h4 className="font-semibold mb-2">その他</h4>
+                              <table className="w-full text-left">
+                                <tbody>
+                                  <tr><td className="pr-4 py-1 font-mono">[リンク](URL)</td><td className="py-1">→ リンク</td></tr>
+                                  <tr><td className="pr-4 py-1 font-mono">&gt; 引用</td><td className="py-1">→ 引用文</td></tr>
+                                  <tr><td className="pr-4 py-1 font-mono">---</td><td className="py-1">→ 水平線</td></tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                          <p className="mt-3 text-gray-600">
+                            💡 画像は Ctrl+V で貼り付け、または「画像挿入」ボタンで追加できます。
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </>
                 ) : (
                   <div className="border rounded-md p-4 min-h-[500px] bg-white">
